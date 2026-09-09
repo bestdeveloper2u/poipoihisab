@@ -100,9 +100,17 @@ def _upstream() -> HTTPException:
 
 
 def _sa_value() -> str | None:
-    """Raw ``poipoihisab_GOOGLE_SHEETS_SA_FILE`` value (path OR inline JSON)."""
-    value = os.environ.get("poipoihisab_GOOGLE_SHEETS_SA_FILE")
-    return value or None
+    """Raw ``POIPOIHISAB_GOOGLE_SHEETS_SA_FILE`` value (path OR inline JSON)."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if settings.google_sheets_sa_file:
+        return settings.google_sheets_sa_file
+    return (
+        os.environ.get("POIPOIHISAB_GOOGLE_SHEETS_SA_FILE")
+        or os.environ.get("poipoihisab_GOOGLE_SHEETS_SA_FILE")
+        or None
+    )
 
 
 def _load_sa_info() -> dict[str, Any] | None:
