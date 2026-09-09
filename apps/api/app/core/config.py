@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     version: str = "0.28.0"
     env: str = "local"
     database_url: str = "sqlite+aiosqlite:///./poipoihisab.db"
-    cors_origins: list[str] = [
+    cors_origins: Any = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:80",
@@ -47,23 +47,65 @@ class Settings(BaseSettings):
     google_sheets_sa_file: str = ""
     # --- Superadmin access --------------------------------------------------
     # List of emails that automatically receive superadmin privileges.
-    superadmin_emails: list[str] = ["iforuimran@gmail.com"]
+    superadmin_emails: Any = ["iforuimran@gmail.com"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v: object) -> list[str]:
+        default = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:80",
+        ]
+        if not v:
+            return default
+        if isinstance(v, str):
+            import json
+
+            s = v.strip()
+            if not s:
+                return default
+            if s.startswith("[") and s.endswith("]"):
+                try:
+                    parsed = json.loads(s)
+                    if isinstance(parsed, list):
+                        result = [str(e).strip() for e in parsed if str(e).strip()]
+                        return result or default
+                except (ValueError, TypeError):
+                    pass
+            origins = [e.strip() for e in s.split(",") if e.strip()]
+            return origins or default
+        if isinstance(v, (list, tuple, set)):
+            result = [str(e).strip() for e in v if str(e).strip()]
+            return result or default
+        return default
 
     @field_validator("superadmin_emails", mode="before")
     @classmethod
     def _parse_superadmin_emails(cls, v: object) -> list[str]:
+        default = ["iforuimran@gmail.com"]
+        if not v:
+            return default
         if isinstance(v, str):
             import json
 
-            if v.strip().startswith("[") and v.strip().endswith("]"):
+            s = v.strip()
+            if not s:
+                return default
+            if s.startswith("[") and s.endswith("]"):
                 try:
-                    return [str(e).strip().lower() for e in json.loads(v)]
+                    parsed = json.loads(s)
+                    if isinstance(parsed, list):
+                        result = [str(e).strip().lower() for e in parsed if str(e).strip()]
+                        return result or default
                 except (ValueError, TypeError):
                     pass
-            return [e.strip().lower() for e in v.split(",") if e.strip()]
+            emails = [e.strip().lower() for e in s.split(",") if e.strip()]
+            return emails or default
         if isinstance(v, (list, tuple, set)):
-            return [str(e).strip().lower() for e in v if str(e).strip()]
-        return ["iforuimran@gmail.com"]
+            result = [str(e).strip().lower() for e in v if str(e).strip()]
+            return result or default
+        return default
 
     @model_validator(mode="after")
     def _resolve_jwt_secret(self) -> "Settings":
