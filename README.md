@@ -25,6 +25,7 @@ Poi Poi Hisab is built for everyday life in Bangladesh and beyond. Record daily 
   - [3. Frontend Web Setup (React + Vite)](#3-frontend-web-setup-react--vite)
   - [4. Mobile App Setup (Expo / React Native)](#4-mobile-app-setup-expo--react-native)
 - [Environment Variables](#-environment-variables)
+- [Google Sheets Integration](#-google-sheets-integration)
 - [Complete Deployment Guide](#-complete-deployment-guide)
   - [Deploying to Vercel (Recommended)](#1-deploying-to-vercel-recommended)
   - [Database Setup (PostgreSQL)](#2-database-setup-postgresql)
@@ -197,6 +198,19 @@ All API environment variables are prefixed with `poipoihisab_` (enforced by `pyd
 | `poipoihisab_SUPERADMIN_EMAILS` | Comma-separated list of emails with Superadmin privileges | `["iforuimran@gmail.com"]` | Set your admin email |
 | `poipoihisab_REFRESH_COOKIE_SECURE` | Set `0` only for non-HTTPS local dev; `1` for production | `1` (True) | Keep `1` (Secure cookie) |
 | `poipoihisab_GOOGLE_SHEETS_SA_FILE` | Absolute path to Google Service Account JSON for Sheets sync | `""` | Optional |
+
+---
+
+## 📊 Google Sheets Integration
+
+The web app can append the signed-in user's expenses to a personal Google
+spreadsheet through a deployment-wide service account. Setup requires enabling
+the Google Sheets API, configuring the service-account JSON, and sharing each
+target spreadsheet with the service-account email as an Editor.
+
+See the [complete Google Sheets integration guide](docs/GOOGLE_SHEETS_INTEGRATION.md)
+for local and Vercel setup, end-user instructions, the API contract, output
+columns, security guidance, testing, limitations, and troubleshooting.
 
 ---
 
