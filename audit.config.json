@@ -1,0 +1,61 @@
+{
+  "docs": {
+    "roadmap": "ROADMAP.md",
+    "status": "STATUS.md",
+    "backlog": "BACKLOG.md",
+    "slicesSection": "## Part 5",
+    "slicePattern": "R\\d+\\.\\d+"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "envExample": ".env.example",
+  "envIgnore": [
+    "NODE_ENV",
+    "CI",
+    "PORT",
+    "VERCEL_OIDC_TOKEN"
+  ],
+  "vocabulary": [
+    {
+      "use": "poipoihisab",
+      "instead": [
+        "khoroch"
+      ],
+      "allow": []
+    },
+    {
+      "use": "superadmin",
+      "instead": [
+        "superuser",
+        "sysadmin"
+      ],
+      "allow": []
+    }
+  ],
+  "sourceDirs": [
+    "apps",
+    "packages"
+  ],
+  "testDir": [
+    "src",
+    "tests"
+  ],
+  "i18n": {
+    "webDict": "apps/web/src/lib/web-i18n.ts",
+    "coreDict": "packages/core/src/i18n.ts",
+    "langs": [
+      "bn",
+      "en"
+    ]
+  },
+  "api": {
+    "settings": "apps/api/app/core/config.py",
+    "envPrefix": "POIPOIHISAB_",
+    "adminRouter": "apps/api/app/routers/admin.py",
+    "adminDep": "SuperAdminDep",
+    "modelsDir": "apps/api/app/models",
+    "migrationsDir": "apps/api/alembic/versions"
+  }
+}

@@ -25,6 +25,13 @@ const updateSW = registerSW({
   onNeedReload: () => notifyAppUpdate(() => window.location.reload()),
 });
 
+// Auto-reload on chunk load failure after a new deployment
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", () => {
+    window.location.reload();
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

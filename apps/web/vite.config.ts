@@ -107,6 +107,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         globPatterns: ["**/*.{js,css,html,png,svg,ico,woff,woff2}"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
@@ -131,5 +134,24 @@ export default defineConfig({
     environment: "jsdom",
     globals: false,
     setupFiles: "./tests/setup.ts",
+    /*
+     * `include` and `exclude` are explicit because Vitest's defaults are
+     * implicit, and an implicit default is not something `pnpm verify` can
+     * check. Two locations on purpose: unit specs sit beside their source in
+     * src/, screen-level specs that mount App and stub fetch live in tests/.
+     * 60 files across the two — scripts/audit-test-wiring.mjs asserts both
+     * directories are named here, so a whole spec directory cannot drop out
+     * of the run while the suite still reports green.
+     *
+     * The dist/ exclusion is not theoretical: `pnpm build:web` writes
+     * apps/web/dist, and without it a spec and its compiled copy both run —
+     * the count doubles and the stale copy can keep passing after the source
+     * it was built from stopped working.
+     */
+    include: [
+      "src/**/*.{test,spec}.{ts,tsx}",
+      "tests/**/*.{test,spec}.{ts,tsx}",
+    ],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/dev-dist/**"],
   },
 });

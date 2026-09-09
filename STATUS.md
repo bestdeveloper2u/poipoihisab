@@ -1,0 +1,108 @@
+# Status
+
+Legend: `[ ]` not started · `[~]` building · `[x]` done (every
+Definition-of-Done point, pushed) · `[!]` **closed except for a named UI or Does
+clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
+
+`[!]` does not count as done and does not count as building, and
+`scripts/audit-status.mjs` refuses it **in both directions**: a `[x]` with an
+open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
+half is what stops `[!]` becoming somewhere to hide.
+
+**Current release: R2** · slices done: 12 / 23 · building: **nothing**
+
+---
+
+## Slices
+
+| Done | Slice | Route | Kind |
+| ---- | ----- | ----- | ---- |
+| [x]  | **R1.1** Login and registration | `/login` | screen |
+| [x]  | **R1.2** Dashboard | `/` | screen |
+| [x]  | **R1.3** Expense list | `/expenses` | screen |
+| [x]  | **R1.4** Monthly hisab | `/month` | screen |
+| [x]  | **R1.5** Reports | `/report` | screen |
+| [x]  | **R1.6** Debts | `/debts` | screen |
+| [x]  | **R1.7** Budget | `/budget` | screen |
+| [x]  | **R1.8** Recurring expenses | `/recurring` | screen |
+| [x]  | **R1.9** Settings | `/settings` | screen |
+| [x]  | **R1.10** Bengali voice entry | overlay | feature |
+| [x]  | **R1.11** Offline-first shell | PWA | feature |
+| [x]  | **R1.12** Google Sheets sync | `/settings` | feature |
+| [!]  | **R2.1** Admin overview | `/admin` | screen |
+| [!]  | **R2.2** Users roster | `/admin/users` | screen |
+| [!]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
+| [!]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
+| [!]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
+| [!]  | **R2.6** Data import and export | `/admin/data` | screen |
+| [!]  | **R2.7** Audit log | `/admin/audit` | screen |
+| [!]  | **R2.8** Admins and roles | `/admin/roles` | screen |
+| [!]  | **R2.9** Sessions and security | `/admin/security` | screen |
+| [!]  | **R2.10** System health | `/admin/system` | screen |
+| [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
+
+<!--
+Keep the counter above in step with the ticked boxes — the audit compares them.
+Ticking a box is a THREE-part edit: this row, the counter, and the BACKLOG row
+(struck through, or annotated CLOSED). That is deliberate. It forces the choice
+out loud at closure time: build the clause, amend the plan's Done line, or do
+not tick the box.
+-->
+
+---
+
+## Log
+
+Newest first. One entry per session. A narrative, not a checklist: what was
+tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-09 — **This document set was retrofitted onto a project that was already shipping, and the retrofit immediately caught three things a green build had been hiding.**
+
+The four documents and the `scripts/` audit layer went in today. The honest
+reason to adopt them mid-flight rather than at a boundary: R2 was built and
+verified entirely by machine — 292 API tests, 548 web tests, both typecheckers,
+ESLint, a production build — and every one of those was green while the three
+defects below were live. Machine-green is not the same as true.
+
+**What the audits found on their first run.** `audit-test-wiring` failed on both
+test configurations: neither `apps/web/vite.config.ts` nor
+`packages/core/vitest.config.ts` excluded build output, and the web config had
+no explicit `include` at all — Vitest's defaults were doing the scoping, which
+means `pnpm verify` could not check it. Both are now explicit, and the web
+config names `src/` and `tests/` because the 60 spec files live in two places.
+Spec count before and after: 62 across the repo, unchanged — the explicit globs
+match exactly what the defaults were matching, which is the point.
+
+`audit-env` needed replacing rather than configuring, and this is the most
+useful thing learned today. The shipped version scans JavaScript for
+`process.env.X`. Two thirds of this application's configuration is a lowercase
+field on a pydantic `Settings` class plus an `env_prefix`, so the string
+`POIPOIHISAB_DATABASE_URL` appears nowhere in the Python at all. Run
+unmodified, the audit found two variables and reported all thirteen API
+variables as dead config — thirteen false errors, which is exactly how an audit
+gets disabled. It now derives the API's variable names from the Settings fields.
+Result: 15 declared, 15 read, agreeing in both directions.
+
+**Where a previous conclusion in this session was wrong.** The last-superadmin
+guard was written, reviewed and committed before it became clear it could not
+fire. Every caller filters its own id out of the target list, so the acting
+admin always supplied the one remaining admin the check was looking for. The
+guard was rewritten around the failure that *is* reachable — an admin whose
+access comes only from `POIPOIHISAB_SUPERADMIN_EMAILS` demoting every DB-flagged
+admin, after which a change to that variable locks everyone out — and it now has
+three assertions that trip it. The original reasoning is left in this entry
+rather than edited out: the lesson is that "I wrote a guard" and "the guard can
+fire" are different claims, and only the second one has a test.
+
+**What is NOT done, and why eleven boxes read `[!]`.** Every R2 screen is code
+complete with passing tests, and not one of them has been looked at in a
+browser. Definition-of-Done point 1 asks for three widths, viewed. That was not
+done, so the boxes cannot read `[x]` — see the eleven `**Unmet:**` rows in
+`BACKLOG.md`. This is the marker doing its job on its first day: the alternative
+was eleven ticks and a caveat in a sentence nobody would find in three weeks.
+
+**Also today.** `.gitattributes` now pins line endings, after files written from
+a Linux shell landed as LF in a CRLF working tree — harmless to git, which
+normalises before comparing, but it left the checkout with mixed endings and
+made `git status` in a non-Windows shell report 253 modified files that were
+byte-identical in content.
