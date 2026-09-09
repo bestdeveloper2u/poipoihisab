@@ -13,6 +13,7 @@ import type { Expense, ExpenseCreateInput } from "@poipoihisab/api-client";
 import { useExpensesInfinite, useExpenseMutations } from "../lib/queries";
 import {
   dayLabel,
+  groupDot,
   groupName,
   monthLabel,
   payName,
@@ -164,12 +165,13 @@ function DayGroupHeader({
   lang: Lang;
   today: string;
 }) {
+  const isToday = group.iso === today;
   return (
-    <div className="flex items-baseline justify-between px-1 py-1.5 text-[13px]">
-      <span className="font-bold">
-        {group.iso === today ? w(lang, "today") : dayLabel(group.iso, lang)}
+    <div className="flex items-center justify-between px-1.5 py-1.5 text-[13px]">
+      <span className={`font-bold ${isToday ? "text-emerald" : "text-ink"}`}>
+        {isToday ? w(lang, "today") : dayLabel(group.iso, lang)}
       </span>
-      <span className="font-semibold tabular-nums text-muted">
+      <span className="rounded-md border border-line/60 bg-surface-2/60 px-2 py-0.5 font-semibold tabular-nums text-muted shadow-2xs">
         {fmtTaka(group.sum, lang)}
       </span>
     </div>
@@ -188,9 +190,14 @@ function ExpenseRow({
   onEdit: (row: Expense) => void;
 }) {
   return (
-    <li className="flex items-center gap-3 px-3.5 py-3">
+    <li className="group flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-surface-2/40">
+      <span
+        aria-hidden="true"
+        className="h-2.5 w-2.5 shrink-0 rounded-full shadow-2xs"
+        style={{ backgroundColor: groupDot(row.grp) }}
+      />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{row.cat}</p>
+        <p className="truncate text-sm font-semibold text-ink">{row.cat}</p>
         <p className="truncate text-xs text-muted">
           {groupName(row.grp, lang)} · {payName(row.pay, lang)}
           {row.desc ? ` · ${row.desc}` : ""}
@@ -203,7 +210,7 @@ function ExpenseRow({
         type="button"
         aria-label={`${row.cat} — ${w(lang, "edit")}`}
         onClick={() => onEdit(row)}
-        className="max-md:flex max-md:h-11 max-md:w-11 max-md:items-center max-md:justify-center rounded-control p-2 text-muted hover:bg-surface-2 hover:text-ink"
+        className="max-md:flex max-md:h-11 max-md:w-11 max-md:items-center max-md:justify-center rounded-control p-2 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
       >
         <IconPencil className="h-4 w-4" />
       </button>
@@ -432,13 +439,13 @@ export function Expenses() {
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={w(lang, "searchPh")}
             aria-label={w(lang, "searchPh")}
-            className="max-md:min-h-11 w-full rounded-control border border-line bg-surface py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-muted/70 focus:border-emerald focus:outline-none"
+            className="max-md:min-h-11 w-full rounded-control border border-line bg-surface py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-muted/70 shadow-xs transition-colors focus:border-emerald focus:outline-none"
           />
         </div>
         <button
           type="button"
           onClick={() => setFormOpen(true)}
-          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control bg-emerald px-3.5 py-2.5 text-sm font-bold text-accent-ink transition-[filter] hover:brightness-110"
+          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control bg-emerald px-3.5 py-2.5 text-sm font-bold text-accent-ink shadow-xs transition-all hover:brightness-110 active:scale-[0.98]"
         >
           <IconPlus className="h-4 w-4" />
           {t(lang, "addExpense")}
@@ -446,7 +453,7 @@ export function Expenses() {
         <button
           type="button"
           onClick={() => setVoiceOpen(true)}
-          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm font-semibold text-ink hover:bg-surface-2"
+          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm font-semibold text-ink shadow-xs transition-all hover:bg-surface-2 active:scale-[0.98]"
         >
           <IconMic className="h-4 w-4" />
           {w(lang, "voiceBtn")}
@@ -456,7 +463,7 @@ export function Expenses() {
           onClick={handleExportCsv}
           disabled={rows.length === 0}
           aria-label={w(lang, "csvLabel")}
-          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm font-semibold text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm font-semibold text-ink shadow-xs transition-all hover:bg-surface-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <IconDownload className="h-4 w-4" />
           {w(lang, "csvLabel")}
@@ -465,7 +472,7 @@ export function Expenses() {
           type="button"
           onClick={() => fileRef.current?.click()}
           aria-label={w(lang, "importBtn")}
-          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm font-semibold text-ink hover:bg-surface-2"
+          className="max-md:min-h-11 flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm font-semibold text-ink shadow-xs transition-all hover:bg-surface-2 active:scale-[0.98]"
         >
           <IconUpload className="h-4 w-4" />
           {w(lang, "importBtn")}
@@ -479,14 +486,14 @@ export function Expenses() {
         />
       </div>
 
-      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={w(lang, "filterAll")}>
+      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1.5" role="group" aria-label={w(lang, "filterAll")}>
         <button
           type="button"
           onClick={() => setMonth(null)}
           aria-pressed={month === null}
-          className={`max-md:flex max-md:min-h-11 max-md:items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${
+          className={`max-md:flex max-md:min-h-11 max-md:items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-all ${
             month === null
-              ? "border-emerald bg-emerald-soft text-emerald"
+              ? "border-emerald bg-emerald-soft font-bold text-emerald shadow-xs"
               : "border-line bg-surface text-muted hover:bg-surface-2"
           }`}
         >
@@ -498,9 +505,9 @@ export function Expenses() {
             type="button"
             onClick={() => setMonth(ym)}
             aria-pressed={month === ym}
-            className={`max-md:flex max-md:min-h-11 max-md:items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${
+            className={`max-md:flex max-md:min-h-11 max-md:items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-all ${
               month === ym
-                ? "border-emerald bg-emerald-soft text-emerald"
+                ? "border-emerald bg-emerald-soft font-bold text-emerald shadow-xs"
                 : "border-line bg-surface text-muted hover:bg-surface-2"
             }`}
           >
@@ -509,15 +516,23 @@ export function Expenses() {
         ))}
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between text-[13px] text-muted">
-        <span>
-          {lang === "bn"
-            ? `${toBnDigits(String(rows.length))} ${w(lang, "entries")}`
-            : `${rows.length} ${w(lang, "entries")}`}
-        </span>
-        <span className="font-bold tabular-nums text-ink">
-          {fmtTaka(loadedTotal, lang)}
-        </span>
+      <div className="mt-3.5 flex items-center justify-between rounded-card border border-line bg-surface/80 px-4 py-2.5 shadow-card backdrop-blur-xs">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted">
+          <span className="inline-block h-2 w-2 rounded-full bg-emerald" aria-hidden="true" />
+          <span>
+            {lang === "bn"
+              ? `${toBnDigits(String(rows.length))} ${w(lang, "entries")}`
+              : `${rows.length} ${w(lang, "entries")}`}
+          </span>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xs text-muted">
+            {lang === "bn" ? "মোট:" : "Total:"}
+          </span>
+          <span className="text-base font-bold tabular-nums text-ink">
+            {fmtTaka(loadedTotal, lang)}
+          </span>
+        </div>
       </div>
 
       {query.isPending && (
@@ -593,11 +608,11 @@ export function Expenses() {
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-4">
+        <div className="mt-3.5 flex flex-col gap-4.5">
           {dayGroups.map((group) => (
-            <div key={group.iso}>
+            <div key={group.iso} className="flex flex-col gap-1">
               <DayGroupHeader group={group} lang={lang} today={today} />
-              <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+              <ul className="flex flex-col divide-y divide-line/75 overflow-hidden rounded-card border border-line bg-surface shadow-card">
                 {group.rows.map((row) => (
                   <ExpenseRow key={row.id} row={row} lang={lang} onEdit={openEdit} />
                 ))}
