@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.4, pulled forward on request) · slices done: 13 / 27 · building: **R3.4**
+**Current release: R2** (plus R3.1–R3.4, pulled forward on request) · slices done: 14 / 27 · building: **nothing**
 
 ---
 
@@ -43,7 +43,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
 | [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
 | [!]  | **R3.3** Multi-year Sheets ledger | `POST /export/sheets` | endpoint |
-| [~]  | **R3.4** Continuous integration | GitHub Actions | workflow |
+| [x]  | **R3.4** Continuous integration | GitHub Actions | workflow |
 
 <!--
 Keep the counter above in step with the ticked boxes — the audit compares them.
@@ -60,7 +60,7 @@ not tick the box.
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
 
-### 2026-09-09 (R3.4, verification in progress) — **The gate needs a fresh runner.**
+### 2026-09-09 (R3.4) — **The gate needs a fresh runner.**
 
 The next-task request selects the unblocked CI backlog item. `Verify` now defines
 Linux and Windows jobs for pushes, pull requests and manual dispatch. Both install
@@ -72,9 +72,20 @@ deployment steps, branch-protection changes or application changes are included.
 Local YAML assertions validate the triggers, permissions, pins and non-optional
 gates. The standalone actionlint process could not start on this host (access
 denied), so no actionlint result is claimed. GitHub's run API is readable, but
-Actions policy inspection returns 403; the first actual hosted run, not a guessed
-policy setting, will decide whether this slice can close. Root `.env` is still
-absent; `doctor` reports it, while the hermetic test suite does not require it.
+Actions policy inspection returns 403, but the actual workflow was accepted and
+[run 34384774609](https://github.com/bestdeveloper2u/poipoihisab/actions/runs/34384774609)
+passed on both hosted runners (Linux 1m29s, Windows 3m5s), including the generated
+contract check and production build. That run exposed the pnpm action's deprecated
+Node 20 runtime, so its pin was updated to compatible v5 using Node 24. Local
+verification also passed: 549 web, 10 core, 360 API tests, 7 optional API skips,
+all nine audits, both typechecks, both linters and the production web build.
+Root `.env` is still absent; `doctor` reports it, while the hermetic test suite
+does not require it. No application contracts changed when regenerated.
+
+The deployment checklist kept this change read-only and separate from deployment:
+`main` is not protected, and no required-check policy or Vercel trigger was changed.
+The README explains the check names, optional skips, failure inspection and normal
+revert path. Personal workbook files remain untracked and were not uploaded.
 
 ### 2026-09-09 (R3.3) — **A new year needs more than renamed month tabs.**
 

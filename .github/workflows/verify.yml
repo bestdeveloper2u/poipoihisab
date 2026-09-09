@@ -35,9 +35,9 @@ jobs:
         with:
           persist-credentials: false
 
-      # v4 reads the exact pnpm version from package.json's packageManager.
+      # Reads the exact pnpm version from package.json's packageManager.
       - name: Set up pnpm
-        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
