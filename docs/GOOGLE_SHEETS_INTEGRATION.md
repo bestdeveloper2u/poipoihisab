@@ -1,21 +1,31 @@
 # Google Sheets integration
 
 This guide explains how to configure, use, verify, operate, and troubleshoot the
-Google Sheets expense export in Poi Poi Hisab.
+Google Sheets export in Poi Poi Hisab — the expenses that go into the workbook's
+month tabs, and the debts, budget and recurring rules that go into its three
+ledger tabs.
 
 ## What this integration does
 
-Poi Poi Hisab exports the signed-in user's expenses to a Google spreadsheet.
-The backend authenticates to Google with one deployment-wide service account,
-and each spreadsheet owner grants that service account access to only the sheet
-they want to use.
+Poi Poi Hisab exports the signed-in user's records to a Google spreadsheet: the
+expenses, and — since R3.2 — the debts, the budget and the recurring rules, so a
+copy of the workbook holds the whole ledger rather than only what was spent. The
+backend authenticates to Google with one deployment-wide service account, and
+each spreadsheet owner grants that service account access to only the sheet they
+want to use.
 
 The integration is:
 
 - **One-way:** Poi Poi Hisab writes expenses to Google Sheets. It does not read
   changes back from the spreadsheet.
-- **Append-only:** every sync adds rows. It does not update or remove rows that
-  were exported previously.
+- **Monthly replacement:** each targeted month replaces rows 4–203 in columns
+  A:C and E:F of the Bengali expense-workbook template. Formulas in D and
+  manual comments in G are not written.
+- **Whole-state ledger tabs:** every sync also rewrites `ধার-দেনা`, `বাজেট` and
+  `পুনরাবৃত্ত খরচ` in full, whichever month range was requested. Those records
+  are current state, not history, so `month` does not narrow them. A workbook
+  without those tabs is an older copy of the template: the tabs are skipped and
+  named in the response, and its months still sync.
 - **Manual:** a user starts either a current-month or all-time sync from the web
   app's Settings page.
 - **Owner-scoped:** the API exports only the expenses owned by the authenticated
@@ -23,9 +33,18 @@ The integration is:
 - **Service-account based:** end users do not connect their personal Google
   account through OAuth.
 
-> **Important:** syncing the same period more than once duplicates its expense
-> rows and adds another header row. A failed request may also have appended one
-> or more batches before the failure. Check the spreadsheet before retrying.
+> **Important:** use a dedicated copy of the দৈনিক খরচের হিসাব workbook, and one
+> whose ledger tabs exist — build them with
+> `uv --directory apps/api run --with openpyxl python scripts/add_ledger_sheets.py in.xlsx out.xlsx`.
+> The output must be a new file. Existing ledger tabs are refused by default;
+> `--replace-ledger` explicitly rebuilds those tabs **without their records** in
+> the new copy. Never use this option as a migration of a populated ledger.
+> Sync replaces existing entries in each targeted month and rewrites the three
+> ledger tabs entirely; it is not a merge. Hand edits to those three tabs are
+> lost on the next sync, so make the change in the app.
+> Repeating an unchanged sync does not duplicate rows. Manual comments stay in
+> their cells, not attached to expense IDs, so review them if expense ordering changes.
+> After a timeout, check whether the replacement completed before retrying.
 
 ## Five-minute setup summary
 
@@ -58,14 +77,11 @@ sequenceDiagram
     Web->>API: POST /api/v1/export/sheets<br/>Bearer token + sheet + month
     API->>Google: Refresh service-account access token
     API->>Google: Read spreadsheet tab metadata
-    alt Poi Poi Hisab tab is missing
-        API->>Google: Create Poi Poi Hisab tab
-    end
     API->>DB: Read current user's expenses in 500-row pages
-    loop Every page
-        API->>Google: Append rows to columns A:F
-    end
-    API-->>Web: {"rows": number}
+    API->>API: Group by month; refuse missing tabs or over 200 rows
+    API->>Google: Read template category list if present
+    API->>Google: Replace A:C and E:F in one values:batchUpdate
+    API-->>Web: {rows, months, unmapped}
     Web-->>User: Show localized result toast
 ```
 
@@ -257,14 +273,15 @@ an access token; the first export performs that verification.
 Every spreadsheet must be shared separately unless it inherits access from a
 shared folder.
 
-1. Create or open a Google spreadsheet.
+1. Open a dedicated copy of the দৈনিক খরচের হিসাব workbook, with its Bengali
+   month tabs (for example, `সেপ্টেম্বর ২০২৬`). Blank spreadsheets are not supported.
 2. Select **Share**.
 3. Paste the exact `sa_email` shown by Poi Poi Hisab.
 4. Set access to **Editor**.
 5. Select **Send** or **Share**.
 
-Viewer or Commenter access is insufficient because the integration creates a
-tab and appends rows. The spreadsheet does not need to be public; restricted
+Viewer or Commenter access is insufficient because the integration replaces
+expense cells. The spreadsheet does not need to be public; restricted
 sharing with the service account is preferred. See Google's [spreadsheet
 sharing instructions](https://support.google.com/docs/answer/9331169?hl=en).
 
@@ -295,27 +312,99 @@ document type are rejected.
 
 ## Spreadsheet output contract
 
-The API creates a tab named `Poi Poi Hisab` when it does not already exist, then
-appends to columns `A:F` using `USER_ENTERED` and `INSERT_ROWS`.
+The API requires existing Bengali month tabs and never creates tabs. It replaces
+rows 4–203 in A:C and E:F using `USER_ENTERED`. Unused trailing cells receive
+empty strings in the same request, avoiding a separate destructive clear.
 
 | Column | Header | Source | Format |
 |---|---|---|---|
 | A | `তারিখ` | Expense date | ISO `YYYY-MM-DD` |
 | B | `বিবরণ` | Description | Text; empty when no description exists |
-| C | `গ্রুপ` | Expense group | API enum value such as `food` |
-| D | `খাত` | Category | User-entered text |
-| E | `পরিমাণ (৳)` | Amount | Two decimal places, rendered with Bengali digits |
-| F | `পেমেন্ট` | Payment method | API enum value such as `cash` |
+| C | `খাত` | Category | User-entered text |
+| D | `গ্রুপ` | Template formula | Untouched |
+| E | `পরিমাণ (৳)` | Amount | ASCII decimal string, parsed by Sheets |
+| F | `পেমেন্ট` | Payment method | Bengali template dropdown label |
+| G | `মন্তব্য` | Manual comments | Untouched |
 
 Rows are ordered by expense date and then expense ID. The backend reads the
-database in pages of 500 rows, which bounds database memory use for large
-histories. One header is added at the start of every export operation, including
-an export with zero matching expenses.
+database in pages of 500 rows, then collects the target months for one write.
+No headers are added. A selected empty month is cleared; Sync all targets only
+months still containing app expenses. To clear a formerly exported month whose
+last expense was deleted, explicitly request that month. More than 200 entries
+in any target month refuses the entire export; use CSV for larger months.
+
+The response reports categories absent from `'সেটিংস'!B2:B` without changing
+them, and the Settings toast now names them alongside the ledger counts and any
+skipped tabs. Live date and amount parsing in the owner's spreadsheet locale
+still needs verification.
 
 Text columns are protected against spreadsheet formula injection. Values whose
 first meaningful character is `=`, `+`, `-`, or `@`, or which begin with a tab,
 carriage return, or newline, receive a leading apostrophe before being sent with
 `USER_ENTERED` semantics.
+
+## Ledger output contract
+
+Three tabs hold what the month tabs cannot. Each is rewritten in full on every
+sync, including the trailing empty rows, so a record deleted in the app clears
+its row instead of being left behind. Every computed column is written *around*,
+the same division of labour as column `D` on the month sheets: the sheet owns
+its own arithmetic, and the sync owns only the facts.
+
+`apps/api/scripts/add_ledger_sheets.py` builds all three, and names the same tab
+titles and row bounds as `apps/api/app/routers/sheets.py`. Changing one without
+the other is the failure both files' comments warn about.
+
+### `ধার-দেনা` — rows 4–103, written in `A:E` and `G`
+
+| Column | Header | Source | Notes |
+|---|---|---|---|
+| A | `তারিখ` | `debts.iso` | ISO `YYYY-MM-DD` |
+| B | `কার সাথে` | `debts.party` | User-entered text |
+| C | `ধরন` | `debts.dir` | `ধার দিয়েছি` (lend) / `ধার নিয়েছি` (borrow) |
+| D | `বাকি (৳)` | `debts.amt` | **Outstanding**, not the original loan: a partial payment shrinks it in place |
+| E | `নোট` | `debts.note` | Empty when absent |
+| F | `অবস্থা` | Sheet formula | Untouched — derived from G, so the column and the summary panel cannot disagree |
+| G | `পরিশোধের তারিখ` | `debts.settled_at` | Date part only; empty while open |
+
+The panel in `I4:J9` totals receivable, payable, net position, settled, and the
+open and total entry counts, all from the settle date being empty or not.
+
+### `বাজেট` — rows 4–53 in `A:B`, plus the total in `D2`
+
+| Cell / column | Header | Source | Notes |
+|---|---|---|---|
+| `B2` | month picker | — | Untouched. Names the month tab every actual-spend formula reads |
+| `D2` | `মোট মাসিক বাজেট (৳)` | `budgets.total` | Written |
+| A | `খাত` | `budgets.cats` keys | Ordered by `'সেটিংস'!B2:B`; a category the workbook does not list sorts last |
+| B | `মাসিক সীমা (৳)` | `budgets.cats` values | A value that will not parse as a decimal is dropped, not written |
+| C–F | actual, remaining, usage, state | Sheet formulas | Untouched |
+
+Row 55 carries the reconciliation the budget screen has no room for: the month's
+own total minus everything the budget rows absorbed, which is spend in categories
+with no limit set.
+
+### `পুনরাবৃত্ত খরচ` — rows 4–103, written in `A` and `C:I`
+
+| Column | Header | Source | Notes |
+|---|---|---|---|
+| A | `খাত` | `recurring_expenses.cat` | Written |
+| B | `গ্রুপ` | Sheet formula | Untouched — the same `INDEX/MATCH` the month tabs use, so a rule and an expense in one category cannot land in different groups |
+| C | `পরিমাণ (৳)` | `recurring_expenses.amt` | ASCII decimal string |
+| D | `পেমেন্ট মাধ্যম` | `recurring_expenses.pay` | Bengali dropdown label |
+| E | `বিবরণ` | `recurring_expenses.desc` | Empty when absent |
+| F | `কত দিন পর পর` | `recurring_expenses.freq` | `প্রতিদিন` / `প্রতি সপ্তাহে` / `প্রতি মাসে` / `প্রতি বছরে` |
+| G | `শুরুর তারিখ` | `recurring_expenses.start_date` | ISO |
+| H | `পরবর্তী` | `recurring_expenses.next_run` | ISO |
+| I | `চালু?` | `recurring_expenses.active` | `চালু` / `বন্ধ` |
+| J | `মাসিক সমমান (৳)` | Sheet formula | Untouched — daily ×30, weekly ×4.33, yearly ÷12 |
+
+The panel in `L4:M8` counts active and paused rules, totals the monthly and
+yearly commitment, and counts active rules whose next date has passed — the one
+thing about a recurring rule that otherwise goes wrong in silence.
+
+These are rules, not expenses: an occurrence materialized by
+`POST /recurring/run` becomes a real expense and appears on its month tab.
 
 ## HTTP API reference
 
@@ -361,9 +450,20 @@ Successful response:
 
 ```json
 {
-  "rows": 42
+  "rows": 42,
+  "months": ["সেপ্টেম্বর ২০২৬"],
+  "unmapped": [],
+  "debts": 6,
+  "budget_categories": 9,
+  "recurring": 3,
+  "skipped_tabs": []
 }
 ```
+
+`rows` counts expenses. `debts`, `budget_categories` and `recurring` are the
+whole of what those tabs now hold, not a delta — zero means the app holds none
+and the tab was emptied to match. `skipped_tabs` names ledger tabs this workbook
+does not have, which is how a zero count is told apart from an absent tab.
 
 Example:
 
@@ -395,6 +495,9 @@ Integration errors use a localized detail object:
 |---|---|---|---|
 | 401 | Authentication error | The Poi Poi Hisab access token is missing, invalid, or expired | Sign in or refresh the session |
 | 403 | `sheets_permission_denied` | Google denied one of the spreadsheet operations | Share the exact spreadsheet with `sa_email` as Editor |
+| 409 | `sheets_missing_month_tab` | A required Bengali month tab is absent | Use a template copy with matching year/month tabs |
+| 409 | `sheets_month_full` | A target month exceeds the fixed 200-entry template limit | Use CSV export; inserting spreadsheet rows does not raise this limit |
+| 409 | `sheets_ledger_full` | A ledger tab has more records than its fixed row count (100 debts, 50 budget categories, 100 recurring rules) | Nothing was written. Use `GET /export/backup.json` for the complete set |
 | 422 | `sheets_invalid_sheet` | The spreadsheet ID or URL failed validation | Use a bare ID or an HTTPS `docs.google.com/spreadsheets/d/...` URL |
 | 422 | `sheets_invalid_month` | `month` is not a valid non-zero `YYYY-MM` | Correct the request month or use `null` |
 | 502 | `sheets_upstream_error` | Token refresh, network, Google response, or metadata parsing failed | Check Google API status/configuration and inspect the sheet before retrying |
@@ -427,8 +530,8 @@ Google recommends storing user-managed service-account keys securely; see
 
 ## Reliability, quotas, and current limitations
 
-The integration makes one metadata read, optionally one tab-creation write, and
-one append write per 500-expense page. Token refresh may make an additional
+The integration makes one metadata read, an optional category-list read, and
+one replacement write for all target months. Token refresh may make an additional
 Google authentication request.
 
 Each Google call has a 5-second connection timeout and a 30-second response
@@ -446,10 +549,11 @@ Current product limitations:
   expose a Sheets sync screen.
 - Only expenses are exported. Budgets, debts, recurring rules, and reports are
   not exported.
-- The destination tab name and six-column layout are fixed.
+- Bengali month names and the 200-row template layout are fixed.
 - Export is not placed in the offline outbox; it requires live API and Google
   connectivity.
-- There is no idempotency key, export ledger, update, deletion, or two-way sync.
+- There is no export ledger or two-way sync. An all-time sync cannot identify
+  a previously exported month that now has zero expenses; select it explicitly.
 - Concurrent syncs or manual spreadsheet edits are not reconciled.
 
 ## Troubleshooting
@@ -496,16 +600,15 @@ and restart/redeploy.
 - Check outbound access to `oauth2.googleapis.com` and
   `sheets.googleapis.com`.
 - Check Google service health and quota usage.
-- Inspect the spreadsheet before retrying because earlier 500-row batches may
-  already be present.
+- Inspect the spreadsheet before retrying: a timeout can leave the outcome of
+  the single replacement request unknown.
 - For a large Vercel export, check function logs for a duration limit.
 
 ### The spreadsheet contains duplicates or repeated headers
 
-That is the current append-only contract, not a transient display bug. Delete
-the unwanted rows manually. Do not retry a period without first checking the
-destination. Adding idempotent export tracking would require a product and data
-model change.
+The old exporter appended to a flat `Poi Poi Hisab` tab. The monthly exporter
+does not use or remove that legacy tab. Keep a backup of old exports and use a
+template copy for the new integration; repeated monthly syncs do not append.
 
 ### The buttons are disabled
 
@@ -542,8 +645,18 @@ pnpm verify
 
 The automated tests mock Google and do not write to a real spreadsheet. A safe
 production smoke test should use a dedicated test user, a dedicated spreadsheet,
-and one unmistakable expense. Verify the row, then delete the test spreadsheet
-or revoke its service-account sharing permission.
+and a copy of the template. Sync the same month twice and compare row counts,
+numeric monthly totals, dates, formulas in D, and manual comments in G; then
+check the debt panel's receivable and payable totals against the app's ধার-দেনা
+screen, and that the recurring sheet's monthly commitment matches the rules on
+`/recurring`. This live round trip remains open in BACKLOG.md; mocked tests do
+not prove it.
+
+The ledger sheets' formulas are verified separately and by a different means:
+`add_ledger_sheets.py` writes them, sample rows are filled in, and the workbook
+is recalculated in LibreOffice so every computed cell is read back as a number
+rather than trusted as a string. That proves the arithmetic and says nothing
+about Google.
 
 ## Implementation map
 
@@ -551,8 +664,9 @@ or revoke its service-account sharing permission.
 |---|---|---|
 | API configuration | `apps/api/app/core/config.py` | Declares the service-account setting |
 | API lifecycle | `apps/api/app/main.py` | Bridges settings into the Sheets router environment |
-| Sheets backend | `apps/api/app/routers/sheets.py` | Credential loading, validation, token refresh, tab creation, batching, append, and errors |
+| Sheets backend | `apps/api/app/routers/sheets.py` | Credential loading, validation, token refresh, monthly replacement, and errors |
 | Shared export query | `apps/api/app/routers/export.py` | Owner filter, date bounds, ordering, CSV columns, money serialization, and paging |
+| Workbook template migration | `apps/api/scripts/add_ledger_sheets.py` | Builds the three ledger sheets — headers, formulas, dropdowns, conditional formats — and names the geometry the router writes into |
 | Web client | `apps/web/src/lib/sheets.ts` | Status/export requests, URL validation, and browser persistence |
 | Web UI | `apps/web/src/screens/Settings.tsx` | Sharing instructions and sync actions |
 | Admin UI | `apps/web/src/screens/admin/AdminIntegrations.tsx` | Deployment-wide configuration visibility |

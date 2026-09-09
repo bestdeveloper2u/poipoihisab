@@ -1,6 +1,13 @@
 import { useRef, useState } from "react";
-import { APP_VERSION, t, toBnDigits } from "@poipoihisab/core";
-import { exportSheets, loadSheetRef, saveSheetRef, sheetRef, useSheetsStatus } from "../lib/sheets";
+import { APP_VERSION, t } from "@poipoihisab/core";
+import {
+  exportSheets,
+  loadSheetRef,
+  saveSheetRef,
+  sheetRef,
+  syncReport,
+  useSheetsStatus,
+} from "../lib/sheets";
 import { toast } from "../lib/toast";
 import { useNavigate } from "react-router";
 import {
@@ -83,8 +90,7 @@ function SheetsCard() {
         toast(result.detail || w(lang, "sheetsExportErr"));
         return;
       }
-      const n = lang === "bn" ? toBnDigits(String(result.data.rows)) : String(result.data.rows);
-      toast(w(lang, "sheetsExported").replace("{n}", n));
+      toast(syncReport(lang, result.data));
     } catch {
       toast(w(lang, "sheetsExportErr"));
     } finally {

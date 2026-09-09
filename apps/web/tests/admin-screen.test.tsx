@@ -489,6 +489,8 @@ describe("/admin/users", () => {
     fireEvent.click(screen.getByLabelText("Select Rahim Mia"));
 
     expect(screen.getByText(w("bn", "adminBulkSuspend"))).toBeInTheDocument();
+    const bulkBar = screen.getByText(w("bn", "adminBulkSuspend")).closest(".fixed");
+    expect(bulkBar).toHaveClass("bottom-[calc(5rem+env(safe-area-inset-bottom))]", "lg:bottom-6");
     fireEvent.click(screen.getByText(w("bn", "adminBulkSuspend")));
 
     expect(await screen.findByText(w("bn", "adminBulkConfirmSuspend"))).toBeInTheDocument();
@@ -690,7 +692,10 @@ describe("/admin/analytics", () => {
     expect(await screen.findByText(w("bn", "adminByGroup"))).toBeInTheDocument();
     expect(screen.getByText("food")).toBeInTheDocument();
     expect(screen.getByText("বাজার")).toBeInTheDocument();
-    expect(screen.getByText("2026-09")).toBeInTheDocument();
+    expect(screen.getByText("২০২৬-০৯")).toBeInTheDocument();
+    // Without a definite column height, percentage-height bars collapse to zero.
+    const bar = screen.getByTitle(/২০২৬-০৯:/);
+    expect(bar.parentElement?.parentElement).toHaveClass("h-full");
     // Aggregate-only: the per-user records live behind /admin/users/:id.
     expect(screen.queryByText("সবজি ও মাছ")).toBeNull();
   });

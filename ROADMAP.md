@@ -97,7 +97,10 @@ superadmin off from the member experience and gives the platform the oversight
 it had no way to provide: an audit trail, role management, cross-user session
 control, taxonomy repair, and a system-health probe.
 
-**R3 — not yet scoped.** Read `BACKLOG.md` at the R2 boundary.
+**R3 — not yet scoped**, except for R3.1 and R3.2 below, both asked for during R2:
+R3.1 after a real workbook showed the export could not populate it, R3.2 after the
+owner asked whether the sheet could hold everything, so that the ledger survives the
+app going away. Read `BACKLOG.md` at the R2 boundary for the rest.
 
 ## Part 5 — Screen by screen
 
@@ -348,6 +351,53 @@ credential source, and voice parser status.
 **Data** — `Settings`, `profiles` count.
 **Done** — with the credential supplied inline the response contains
 "(inline JSON)" and no `client_email` key, proven by `test_admin_oversight.py`.
+
+**R3.1 Sheets sync into the workbook's month tabs** · `POST /export/sheets`
+
+**UI** — none. The settings card's existing "এই মাস সিঙ্ক করুন" and "সব সিঙ্ক করুন"
+buttons keep their wording; the response now also carries the tabs it replaced and any
+categories the workbook cannot place in a group.
+**Does** — routes each expense to the tab for its own month (`সেপ্টেম্বর ২০২৬`), writes
+`A:C` and `E:F` and never column `D`, because `D` is the sheet's group lookup. The amount
+goes as a number, not Bengali digits — under `USER_ENTERED` "৪৮০.০০" is text and every
+`SUM` skips it. The payment enum arrives as the exact strings the sheet's dropdown
+validates against. A sync replaces all 200 owned rows in one request, including empty
+trailing cells, so it is idempotent without a clear-then-write failure window. Columns
+`D` (formulas) and `G` (manual comments) are untouched. A missing month tab or a month over 200 rows refuses the whole sync before
+any write, rather than fabricating a formula-less tab or truncating.
+**Data** — `expenses` via the CSV generator's own query; the workbook's `'সেটিংস'!B2:B`
+for the category check.
+**Done** — syncing the same month twice leaves the sheet identical and its total
+unchanged, and a category outside the workbook's list is written verbatim and named in
+the response rather than being placed in a guessed group.
+
+**R3.2 The sheet as a standalone ledger** · `POST /export/sheets`
+
+**UI** — the Settings sync toast stops reporting a row count and nothing else: it
+names what the three ledger tabs now hold, the ledger tabs this workbook does not
+have, and the categories the workbook's list does not contain — the last of these
+reported by the API since R3.1 and displayed nowhere until now.
+**Does** — writes the app's other three record types into three whole-state tabs:
+`ধার-দেনা` (rows 4–103), `বাজেট` (rows 4–53, plus the monthly total in `D2`) and
+`পুনরাবৃত্ত খরচ` (rows 4–103). Those three are current state, not a month of
+history, so `month` does not narrow them and every sync rewrites all three in full —
+a sheet that is only current after the *right kind* of sync is not a fallback. Each
+tab's computed columns are written around, exactly as column `D` is on the month
+sheets: `অবস্থা` on the debt sheet, `গ্রুপ` and `মাসিক সমমান` on the recurring
+sheet, the four computed columns and the unbudgeted-spend line on the budget sheet.
+A workbook without these tabs is an older copy of the template, not a broken one —
+its ledger tabs are skipped and named in the response and its months still sync,
+where a missing MONTH tab still refuses. A ledger tab over its row count refuses the
+whole sync before writing, like a full month. Budget rows follow the workbook's own
+category order. `apps/api/scripts/add_ledger_sheets.py` builds the three sheets and
+names the same geometry.
+**Data** — `debts`, `budgets` and `recurring_expenses`, each scoped to the caller;
+`'সেটিংস'!B2:B` for the category order and the unlisted-category report.
+**Done** — syncing twice writes byte-identical payloads; a record deleted in the app
+clears its row rather than being left behind; a workbook with none of the three tabs
+still syncs its months and names all three as skipped; and the response tells the
+three cases apart — a tab written with zero records, a tab that is not there, and a
+tab too full to write.
 
 ## Part 6 — Verification
 

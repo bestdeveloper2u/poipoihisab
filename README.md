@@ -52,7 +52,14 @@ Poi Poi Hisab is built for everyday life in Bangladesh and beyond. Record daily 
   - Interactive monthly and yearly spending matrices.
   - Expense category distribution and comparative trends.
 - **📊 Google Sheets Integration**:
-  - Direct REST synchronization to append expenses to personal Google Sheets spreadsheets.
+  - Writes each expense into the month tab of a দৈনিক খরচের হিসাব workbook, in that
+    sheet's own column order, with the amount as a number and the group column left to
+    the sheet's own lookup. A sync replaces the month it covers, so running it twice
+    changes nothing and an expense edited in the app is corrected in the sheet.
+  - Carries the rest of the ledger too: debts, the budget and the recurring rules go
+    into three whole-state tabs, rewritten in full on every sync, so a copy of the
+    workbook holds everything the app holds rather than only what was spent. The
+    sheet keeps its own computed columns; the sync writes only the facts.
 - **🛡️ Comprehensive Superadmin Dashboard**:
   - Registered user management with instant search and inspection.
   - Bulk actions: bulk suspend/unsuspend, bulk permanent delete with cascade.
@@ -203,10 +210,13 @@ All API environment variables are prefixed with `poipoihisab_` (enforced by `pyd
 
 ## 📊 Google Sheets Integration
 
-The web app can append the signed-in user's expenses to a personal Google
-spreadsheet through a deployment-wide service account. Setup requires enabling
-the Google Sheets API, configuring the service-account JSON, and sharing each
-target spreadsheet with the service-account email as an Editor.
+The web app can replace monthly expense rows in the signed-in user's Google
+spreadsheet, and rewrite the workbook's `ধার-দেনা`, `বাজেট` and
+`পুনরাবৃত্ত খরচ` tabs, through a deployment-wide service account. Setup requires
+enabling the Google Sheets API, configuring the service-account JSON, and sharing
+each target spreadsheet with the service-account email as an Editor. Build the
+three ledger tabs into a workbook copy with
+`apps/api/scripts/add_ledger_sheets.py`.
 
 See the [complete Google Sheets integration guide](docs/GOOGLE_SHEETS_INTEGRATION.md)
 for local and Vercel setup, end-user instructions, the API contract, output

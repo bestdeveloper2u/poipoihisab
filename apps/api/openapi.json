@@ -2954,9 +2954,48 @@
       },
       "SheetsExportResult": {
         "properties": {
+          "budget_categories": {
+            "default": 0,
+            "title": "Budget Categories",
+            "type": "integer"
+          },
+          "debts": {
+            "default": 0,
+            "title": "Debts",
+            "type": "integer"
+          },
+          "months": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Months",
+            "type": "array"
+          },
+          "recurring": {
+            "default": 0,
+            "title": "Recurring",
+            "type": "integer"
+          },
           "rows": {
             "title": "Rows",
             "type": "integer"
+          },
+          "skipped_tabs": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped Tabs",
+            "type": "array"
+          },
+          "unmapped": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Unmapped",
+            "type": "array"
           }
         },
         "required": [

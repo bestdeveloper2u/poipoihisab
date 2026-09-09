@@ -340,7 +340,7 @@ export function AdminUserDetail() {
                   <tbody className="divide-y divide-line/20">
                     {expenses.items.map((exp) => (
                       <tr key={exp.id} className="transition-colors hover:bg-surface-2/30">
-                        <td className="whitespace-nowrap px-3.5 py-2.5 text-muted">{exp.iso}</td>
+                        <td className="whitespace-nowrap px-3.5 py-2.5 text-muted">{num(exp.iso, lang)}</td>
                         <td className="whitespace-nowrap px-3.5 py-2.5 font-medium text-ink">
                           {exp.cat}
                         </td>

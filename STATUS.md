@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** · slices done: 13 / 23 · building: **nothing**
+**Current release: R2** (plus R3.1 and R3.2, pulled forward on request) · slices done: 13 / 25 · building: **nothing**
 
 ---
 
@@ -40,6 +40,8 @@ half is what stops `[!]` becoming somewhere to hide.
 | [!]  | **R2.9** Sessions and security | `/admin/security` | screen |
 | [!]  | **R2.10** System health | `/admin/system` | screen |
 | [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
+| [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
+| [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
 
 <!--
 Keep the counter above in step with the ticked boxes — the audit compares them.
@@ -55,6 +57,87 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-09 (R3.2 handoff review) — **A template rebuild is not a safe ledger migration.**
+
+The R3.2 implementation was present when the owner's other-agent report arrived.
+Review found that rerunning `add_ledger_sheets.py` silently dropped existing
+ledger sheets, despite describing itself as safe to rerun. It now refuses
+existing ledger tabs unless `--replace-ledger` explicitly requests rebuilding
+them without records in a new output copy. Both in-place writes and overwriting
+an existing destination are refused. Four synthetic-workbook regression tests
+exercise creation, both overwrite guards, refusal, and explicit replacement;
+the original workbook bytes remain unchanged. No personal workbook was modified.
+
+Budget parsing also rejects non-finite and negative legacy limits rather than
+sending `NaN` or unusable values to Sheets. The inherited malformed-limit policy
+still omits those limits; this is not full-fidelity backup serialization.
+
+Earlier admin review in this working tree found two visible defects: the roster
+bulk bar overlapped mobile navigation, and the analytics chart's bars collapsed
+without a definite parent height. Both have regression assertions and browser
+checks. Numeric month labels and inspector expense dates now use Bengali digits
+in Bengali mode. The remaining R2 visual rows stay open; this handoff does not
+claim the interrupted review of every admin screen is finished.
+
+R3.1 and R3.2 remain `[!]`: no live Google spreadsheet round trip has been run.
+The next external gate is a full sync twice against an explicitly authorized,
+disposable 18-sheet template copy. R3.3 remains deferred until the multi-year
+summary and budget month-picker behavior are specified. Personal workbook files
+under `Claude outputs/` are excluded from publication.
+
+**Verification:** regenerated OpenAPI/client; `pnpm verify` passes all nine
+audits, both typechecks, both linters, 10 core tests, 549 web tests and 323 API
+tests. Seven skips are six optional PostgreSQL cases and the optional template
+module. The template module was then run explicitly with openpyxl using
+`uv --directory apps/api run --with openpyxl python -m pytest tests/test_ledger_template.py -q`:
+all four tests passed. These structural tests do not recalculate formulas or
+substitute for the live Google test.
+
+### 2026-09-09 (ledger sync) — **The sheet held a quarter of the ledger. The question was whether it could hold all of it.**
+
+The owner asked whether the sync could put every bit of the app's data into the
+Google Sheet, so that if the website went away they could keep working from the
+sheet. It could not — and the shortfall was not in the sync. The workbook had
+nowhere to put debts, the budget or the recurring rules. Three of the four things
+the app tracks had no column anywhere in it.
+
+**The premise that failed was that "all data" was a sync problem.** It was a
+template problem first. `apps/api/scripts/add_ledger_sheets.py` now builds three
+sheets that hold those records the way the month sheets hold expenses: dropdowns
+over the same `CategoryList` and `PaymentList` names, the group derived by the
+same `INDEX/MATCH`, and a reconciliation line on the budget sheet naming spend in
+categories with no limit set. Every formula was recalculated in LibreOffice
+against sample rows before any of it was believed — the debt panel separated
+৳7,500 receivable from ৳12,000 payable and netted −৳4,500, the budget sheet found
+৳2,050 spent against a ৳2,000 চাল limit and ৳4,949 of September spending in
+unbudgeted categories, and the recurring sheet turned an ৳18,000 yearly premium
+into ৳1,500 a month and flagged the one active rule whose next date had passed.
+
+**A second premise had to be given up in the sync.** The obvious reading of
+`month` is "touch only this month", which would have meant refreshing the ledger
+only on a full sync. That leaves the sheet trustworthy only after the *right kind*
+of sync, with nothing on the sheet to say which kind was run last. So the three
+ledger tabs are rewritten in full on every sync, and `month` narrows the expense
+months and nothing else.
+
+**Refusing a workbook without the new tabs would have been the easy consistency
+and the wrong call.** A missing month tab still refuses the whole sync, because
+filling the months is what the export is for. A missing ledger tab is an older
+copy of the template, so it is skipped, named in the response, and its months
+still sync. Telling those apart is why the response now separates a tab written
+with zero records from a tab that is not there from a tab too full to write.
+
+**One thing already in the response turned out to be invisible.** `unmapped` has
+been returned since the month-tab rewrite and was displayed nowhere, so a
+category the workbook does not list left its group blank and its amount in the
+sheet's শ্রেণিবিন্যাসহীন line with nothing in the app ever saying so. The sync
+toast now names it, along with the ledger counts and any skipped tabs.
+
+**Verification:** nine audits pass, 86 Sheets contract tests (63 before) inside
+320 API tests, 549 web tests, 10 core tests, ESLint, both typechecks and Ruff
+clean. Nothing has been synced into a real spreadsheet yet: R3.2 wears `[!]` for
+the same reason R3.1 does, and `BACKLOG.md` names its clause.
 
 ### 2026-09-09 (visual review) — **R2.1 is visually verified, and its verification blocker was a test-runtime mismatch.**
 
@@ -87,6 +170,50 @@ typechecks, ESLint, 10 core tests, 548 web tests, Ruff, and 297 API tests
 (six optional PostgreSQL tests skipped). Python checks used an isolated Windows
 environment with the frozen `uv.lock`; the existing Linux environment was
 left in place. Existing uncommitted Sheets work was preserved separately.
+
+### 2026-09-09 (later) — **A real workbook arrived and showed the Sheets export could not populate it. Three bugs, each silent, each in the same direction: the sheet would look right and total wrong.**
+
+The owner sent the workbook they actually keep — a 15-sheet Bengali
+`দৈনিক খরচের হিসাব ২০২৬` with a guide, a yearly summary carrying two charts, a
+settings sheet of 54 categories in 8 groups, and twelve monthly sheets. August held
+104 real entries totalling ৳45,356 and September 28 totalling ৳8,694.
+
+**The workbook's own defect was structural, not typographical.** `মোট মাসিক ব্যয়`
+was `SUM($J$4:$J$11)` — the eight group subtotals — and each of those is a `SUMIF`
+over a lookup column that returns `""` for any category outside `CategoryList`. So a
+single unrecognised category dropped its amount out of the monthly total, out of every
+percentage, out of the daily average and out of the yearly summary, while the row sat
+in plain sight with its amount showing. Nothing reported a discrepancy. No row is
+affected today; the structure was the bug. The total now sums the amounts directly and
+a `শ্রেণিবিন্যাসহীন` line under it shows anything the groups failed to absorb, with
+the offending rows highlighted. Proven by injecting a category one letter off from the
+list: the old shape reported ৳8,694 and swallowed ৳250, the new one reports ৳8,944 and
+names the ৳250. Every existing total came back byte-identical — ৳45,356, ৳8,694,
+৳54,050 — across 4,881 formulas with zero recalculation errors.
+
+**Where the premise was wrong about our own export.** The assumption going in was that
+the sync appended in a slightly different column order. It was worse than that, in
+three ways that compound. The CSV order is date, description, **group, category**; the
+workbook is date, description, **category, group** — and its group column is a formula,
+so appending put the group into the category dropdown and overwrote the formula with a
+category name, which stops every `SUMIF` on the sheet from matching. The amount was
+translated to Bengali digits, and under `USER_ENTERED` "৪৮০.০০" is text: the figure
+appears and every `SUM` ignores it. And it appended, so a second sync doubled the month
+— the README warned about that, which is not the same as fixing it. A test in our own
+suite asserted the Bengali-digit amount as correct behaviour, so the suite was pinning
+the bug in place.
+
+**What was built.** Rows now land in the tab for their own month, in that sheet's
+column order, with the amount as a number, the payment enum mapped to the exact strings
+the sheet's dropdown validates against, and column D never written. A sync replaces the
+month it covers rather than appending. A missing month tab and a month over 200 rows
+both refuse the entire sync before any write, because a partial write leaves some
+months replaced and others stale — harder to notice and harder to undo than a refusal.
+Nothing creates the workbook: a tab this code fabricated would have no formulas, no
+dropdowns and no row in the yearly summary, so it would look right and total nothing.
+
+**What is NOT done.** This has never run against a real spreadsheet — every test drives
+a mocked Sheets API. See the `**Unmet:**` row for R3.1.
 
 ### 2026-09-09 — **This document set was retrofitted onto a project that was already shipping, and the retrofit immediately caught three things a green build had been hiding.**
 

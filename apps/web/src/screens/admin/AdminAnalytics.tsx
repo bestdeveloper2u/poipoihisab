@@ -108,16 +108,17 @@ export function AdminAnalytics() {
                 const amount = Number(point.amount);
                 const pct = Math.max(2, (amount / peak) * 100);
                 return (
-                  <div key={point.month} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                  <div key={point.month} className="flex h-full min-w-0 flex-1 flex-col items-center gap-1.5">
                     <div className="flex w-full flex-1 items-end">
                       <div
                         className="w-full rounded-t bg-emerald/80 transition-all hover:bg-emerald"
                         style={{ height: `${pct}%` }}
-                        title={`${point.month}: ${fmtTaka(point.amount, lang)} · ${point.expenses} · +${point.newUsers}`}
+                        title={`${num(point.month, lang)}: ${fmtTaka(point.amount, lang)} · ${num(point.expenses, lang)} · +${num(point.newUsers, lang)}`}
                       />
                     </div>
                     <span className="w-full truncate text-center text-[10px] text-muted">
-                      {point.month.slice(2)}
+                      <span className="sm:hidden">{num(point.month.slice(5), lang)}</span>
+                      <span className="hidden sm:inline">{num(point.month.slice(2), lang)}</span>
                     </span>
                   </div>
                 );
@@ -136,7 +137,7 @@ export function AdminAnalytics() {
                 <tbody className="divide-y divide-line/20">
                   {data.trend.map((point) => (
                     <tr key={point.month}>
-                      <td className="py-1.5 pr-3 font-mono text-muted">{point.month}</td>
+                      <td className="py-1.5 pr-3 font-mono text-muted">{num(point.month, lang)}</td>
                       <td className="py-1.5 pr-3 text-right font-semibold tabular-nums text-ink">
                         {fmtTaka(point.amount, lang)}
                       </td>

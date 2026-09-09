@@ -7,8 +7,8 @@
  */
 import { toBnDigits, type Lang } from "@poipoihisab/core";
 
-/** Localised integer: Bengali digits in bn, Latin in en. */
-export function num(n: number, lang: Lang): string {
+/** Localised numeric label: includes ISO dates and month keys. */
+export function num(n: number | string, lang: Lang): string {
   return lang === "bn" ? toBnDigits(String(n)) : String(n);
 }
 

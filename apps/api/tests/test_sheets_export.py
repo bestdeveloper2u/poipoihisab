@@ -3,7 +3,7 @@
 import importlib
 import json
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -132,77 +132,215 @@ async def test_invalid_month(api, google, month):
     google[3].assert_not_called()
 
 
-@pytest.mark.parametrize("existing", [False, True])
-async def test_export_create_or_existing_tab(api, google, existing):
+SEPT = "সেপ্টেম্বর ২০২৬"
+AUG = "আগস্ট ২০২৬"
+DEBTS = "ধার-দেনা"
+BUDGET = "বাজেট"
+RECUR = "পুনরাবৃত্ত খরচ"
+LEDGER = (DEBTS, BUDGET, RECUR)
+
+
+def result(**overrides):
+    """The response body, defaulted to a workbook with no ledger tabs.
+
+    A helper rather than a literal in every assertion: adding a field to the
+    contract should touch one line, not every full-body comparison — and a
+    full-body comparison is what catches a field silently disappearing.
+    """
+    return {
+        "rows": 0,
+        "months": [],
+        "unmapped": [],
+        "debts": 0,
+        "budget_categories": 0,
+        "recurring": 0,
+        "skipped_tabs": list(LEDGER),
+    } | overrides
+
+
+def sheet_meta(*titles):
+    return {"sheets": [{"properties": {"title": t}} for t in titles]}
+
+
+def page(*records):
+    """One DB result page — what ``execute().all()`` returns."""
+    return SimpleNamespace(all=lambda: list(records))
+
+
+def single(record):
+    """One DB result row — what ``execute().first()`` returns."""
+    return SimpleNamespace(first=lambda: record)
+
+
+def debt(iso, party, direction, amount, note=None, settled=None):
+    return (date.fromisoformat(iso), party, direction, Decimal(amount), note, settled)
+
+
+def rule(cat, amount, freq, start, following, *, pay="cash", desc=None, active=True):
+    return (
+        cat,
+        Decimal(amount),
+        pay,
+        desc,
+        freq,
+        date.fromisoformat(start),
+        date.fromisoformat(following),
+        active,
+    )
+
+
+def responses(*payloads):
+    return [SimpleNamespace(status_code=200, json=lambda p=p: p) for p in payloads]
+
+
+def written(http):
+    """The single values:batchUpdate body, keyed by A1 range."""
+    call = next(c for c in http.call_args_list if c.args[1].endswith("/values:batchUpdate"))
+    assert call.kwargs["json"]["valueInputOption"] == "USER_ENTERED"
+    return {entry["range"]: entry["values"] for entry in call.kwargs["json"]["data"]}
+
+
+async def test_writes_into_the_month_tab_in_sheet_column_order(api, google):
+    """The workbook is date · desc · CATEGORY · group(formula) · amount · pay.
+
+    The CSV this reuses is date · desc · GROUP · CATEGORY. Getting that wrong
+    put the group in the category dropdown and overwrote the formula.
+    """
     client, db, _ = api
-    _, creds, factory, http = google
+    _, _creds, _factory, http = google
     rows = [
-        (
-            date(2026, 9, 7),
-            '=IMPORTXML("evil")',
-            "food",
-            "চা",
-            Decimal("9999999999.99"),
-            "cash",
-            uuid.uuid4(),
-        ),
-        (date(2026, 9, 8), None, "food", " \t=1+1", Decimal("0.10"), "cash", uuid.uuid4()),
+        (date(2026, 9, 7), "চা নাশতা", "food", "চা ও কফি", Decimal("120.50"), "bkash", uuid.uuid4()),
+        (date(2026, 9, 8), None, "transport", "রিকশা / সিএনজি", Decimal("40.00"), "card", uuid.uuid4()),
     ]
     db.execute.side_effect = [SimpleNamespace(all=lambda: rows), SimpleNamespace(all=list)]
-    metadata = {"sheets": [{"properties": {"title": "Poi Poi Hisab" if existing else "Other"}}]}
-    http.side_effect = [SimpleNamespace(status_code=200, json=lambda: metadata)] + [
-        SimpleNamespace(status_code=200, json=dict)
-    ] * (1 if existing else 2)
-    response = await client.post(
-        URL,
-        json={
-            "sheet_id": f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit?usp=sharing#gid=0",
-            "month": "2026-09",
-        },
+    http.side_effect = responses(
+        sheet_meta(SEPT, "সেটিংস"),
+        {"values": [["চা ও কফি", "রিকশা / সিএনজি"]]},
+        {},
+        {},
     )
+
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
     assert response.status_code == 200, response.text
-    assert response.json() == {"rows": 2}
-    creds.refresh.assert_called_once()
-    factory.assert_called_once()
-    assert factory.call_args.args == ({"client_email": "export@example.iam.gserviceaccount.com"},)
-    assert factory.call_args.kwargs["scopes"] == ["https://www.googleapis.com/auth/spreadsheets"]
-    calls = http.call_args_list
-    assert len(calls) == (2 if existing else 3)
-    assert calls[0].args[0] == "GET"
-    if not existing:
-        assert calls[1].args[1].endswith(":batchUpdate")
-        assert calls[1].kwargs["json"] == {
-            "requests": [{"addSheet": {"properties": {"title": "Poi Poi Hisab"}}}]
-        }
-    append = calls[-1]
-    assert append.args[1].endswith(":append")
-    assert append.kwargs["params"]["valueInputOption"] == "USER_ENTERED"
-    values = append.kwargs["json"]["values"]
-    assert values[0] == ["তারিখ", "বিবরণ", "গ্রুপ", "খাত", "পরিমাণ (৳)", "পেমেন্ট"]
-    assert values[1] == ["2026-09-07", '\'=IMPORTXML("evil")', "food", "চা", "৯৯৯৯৯৯৯৯৯৯.৯৯", "cash"]
-    assert values[2][1] == ""
-    assert values[2][3] == "' \t=1+1"
-    assert values[2][4] == "০.১০"
-    for call in calls:
-        assert call.kwargs["timeout"] == (5, 30)
-        assert call.kwargs["allow_redirects"] is False
-        assert call.kwargs["headers"]["Authorization"] == "Bearer test-token"
-    for call in db.execute.call_args_list:
-        statement = call.args[0]
-        compiled = statement.compile()
-        assert OWNER in compiled.params.values()
-        assert date(2026, 9, 1) in compiled.params.values()
-        assert date(2026, 9, 30) in compiled.params.values()
-        assert "expenses.user_id =" in str(compiled)
-        assert "ORDER BY expenses.iso, expenses.id" in str(compiled)
-        assert 500 in compiled.params.values()
-    assert "(expenses.iso, expenses.id) >" in str(db.execute.call_args.args[0])
+    assert response.json() == result(rows=2, months=[SEPT])
+
+    data = written(http)
+    # Column D is untouched in both ranges — it is the sheet's group lookup.
+    assert data[f"'{SEPT}'!A4:C203"][:2] == [
+        ["2026-09-07", "চা নাশতা", "চা ও কফি"],
+        ["2026-09-08", "", "রিকশা / সিএনজি"],
+    ]
+    assert data[f"'{SEPT}'!E4:F203"][:2] == [["120.50", "বিকাশ"], ["40.00", "ডেবিট / ক্রেডিট কার্ড"]]
+    assert not any("D" in rng.split("!")[1] for rng in data)
 
 
-async def test_empty_export(api, google):
-    response = await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": None})
-    assert response.json() == {"rows": 0}
-    assert len(google[3].call_args.kwargs["json"]["values"]) == 1
+async def test_amount_is_a_number_not_bengali_digits(api, google):
+    """Bengali numerals arrive as text and every SUM on the sheet skips them."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    row = (date(2026, 9, 1), None, "food", "চা", Decimal("9999999999.99"), "cash", uuid.uuid4())
+    db.execute.side_effect = [SimpleNamespace(all=lambda: [row]), SimpleNamespace(all=list)]
+    http.side_effect = responses(sheet_meta(SEPT), {}, {})
+    assert (await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})).status_code == 200
+    amount = written(http)[f"'{SEPT}'!E4:F203"][0][0]
+    assert amount == "9999999999.99"
+    assert not any(ch in amount for ch in "০১২৩৪৫৬৭৮৯")
+
+
+async def test_sync_replaces_the_month_instead_of_appending(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+    row = (date(2026, 9, 1), None, "food", "চা", Decimal("5.00"), "cash", uuid.uuid4())
+    db.execute.side_effect = [SimpleNamespace(all=lambda: [row]), SimpleNamespace(all=list)]
+    http.side_effect = responses(sheet_meta(SEPT), {}, {})
+    await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    # One write replaces every owned cell, including stale trailing rows.
+    data = written(http)
+    assert set(data) == {f"'{SEPT}'!A4:C203", f"'{SEPT}'!E4:F203"}
+    assert data[f"'{SEPT}'!A4:C203"][1:] == [["", "", ""]] * 199
+    assert data[f"'{SEPT}'!E4:F203"][1:] == [["", ""]] * 199
+    writes = [c for c in http.call_args_list if c.args[0] == "POST"]
+    assert len(writes) == 1
+    assert writes[0].args[1].endswith("/values:batchUpdate")
+    assert not any(c.args[1].endswith(":append") for c in http.call_args_list)
+
+
+async def test_an_emptied_month_is_cleared_even_with_no_rows(api, google):
+    client, _db, _ = api
+    _, _c, _f, http = google
+    http.side_effect = responses(sheet_meta(SEPT), {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    assert response.json() == result(months=[SEPT])
+    assert written(http) == {
+        f"'{SEPT}'!A4:C203": [["", "", ""]] * 200,
+        f"'{SEPT}'!E4:F203": [["", ""]] * 200,
+    }
+
+
+async def test_syncing_everything_splits_rows_across_month_tabs(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+    rows = [
+        (date(2026, 8, 31), None, "food", "চা", Decimal("1.00"), "cash", uuid.uuid4()),
+        (date(2026, 9, 1), None, "food", "চা", Decimal("2.00"), "cash", uuid.uuid4()),
+    ]
+    db.execute.side_effect = [SimpleNamespace(all=lambda: rows), SimpleNamespace(all=list)]
+    http.side_effect = responses(sheet_meta(AUG, SEPT), {}, {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    assert response.json()["months"] == [AUG, SEPT]
+    data = written(http)
+    assert data[f"'{AUG}'!A4:C203"][0][0] == "2026-08-31"
+    assert data[f"'{SEPT}'!A4:C203"][0][0] == "2026-09-01"
+
+
+async def test_missing_month_tab_refuses_before_writing(api, google):
+    """A tab this code fabricated would have no formulas and total nothing."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    row = (date(2026, 9, 1), None, "food", "চা", Decimal("5.00"), "cash", uuid.uuid4())
+    db.execute.side_effect = [SimpleNamespace(all=lambda: [row]), SimpleNamespace(all=list)]
+    http.side_effect = responses(sheet_meta("Sheet1"))
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    error(response, 409, "sheets_missing_month_tab")
+    assert SEPT in response.json()["detail"]["message_bn"]
+    assert len(http.call_args_list) == 1  # metadata only; nothing written
+
+
+async def test_a_full_month_refuses_rather_than_truncating(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+    rows = [
+        (date(2026, 9, 1), None, "food", "চা", Decimal("1.00"), "cash", uuid.uuid4())
+        for _ in range(201)
+    ]
+    db.execute.side_effect = [SimpleNamespace(all=lambda: rows), SimpleNamespace(all=list)]
+    http.side_effect = responses(sheet_meta(SEPT))
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    error(response, 409, "sheets_month_full")
+    assert "201" in response.json()["detail"]["message_bn"]
+    assert len(http.call_args_list) == 1
+
+
+async def test_unmapped_categories_are_reported_not_rewritten(api, google):
+    """The sheet's own reconciliation line names the amount; guessing a group
+    would silently file money under the wrong heading."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    rows = [
+        (date(2026, 9, 1), None, "transport", "রিক্সা", Decimal("250.00"), "cash", uuid.uuid4()),
+        (date(2026, 9, 2), None, "food", "চা ও কফি", Decimal("30.00"), "cash", uuid.uuid4()),
+    ]
+    db.execute.side_effect = [SimpleNamespace(all=lambda: rows), SimpleNamespace(all=list)]
+    http.side_effect = responses(
+        sheet_meta(SEPT, "সেটিংস"),
+        {"values": [["চা ও কফি", "রিকশা / সিএনজি"]]},
+        {},
+        {},
+    )
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    assert response.json()["unmapped"] == ["রিক্সা"]
+    # The row is still written, verbatim.
+    assert written(http)[f"'{SEPT}'!A4:C203"][0][2] == "রিক্সা"
 
 
 @pytest.mark.parametrize("stage", [0, 1, 2])
@@ -216,10 +354,21 @@ async def test_empty_export(api, google):
     ],
 )
 async def test_google_errors(api, google, stage, status, expected, code):
-    google[3].side_effect = [SimpleNamespace(status_code=200, json=dict)] * stage + [
+    api[1].execute.side_effect = [
+        SimpleNamespace(
+            all=lambda: [
+                (date(2026, 9, 1), None, "food", "চা", Decimal("5.00"), "cash", uuid.uuid4())
+            ]
+        ),
+        SimpleNamespace(all=list),
+    ]
+    # Fail metadata, category-list reading, and the single replacement write.
+    google[3].side_effect = responses(sheet_meta(SEPT, "সেটিংস"), {})[:stage] + [
         SimpleNamespace(status_code=status)
     ]
-    error(await api[0].post(URL, json={"sheet_id": SHEET_ID}), expected, code)
+    error(
+        await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"}), expected, code
+    )
 
 
 async def test_network_timeout(api, google):
@@ -261,24 +410,326 @@ async def test_refresh_transport_has_timeout(api, google, monkeypatch):
 
 
 @pytest.mark.parametrize("text", ["=1+1", "+1", "-1", "@SUM(A1)", "\t=1", "\r=1", "\n=1", "  =1"])
-async def test_all_text_columns_formula_safe(api, google, text):
-    row = (date(2026, 9, 1), text, text, text, Decimal("12.30"), text, uuid.uuid4())
+async def test_every_text_column_is_formula_safe(api, google, text):
+    row = (date(2026, 9, 1), text, "food", text, Decimal("12.30"), text, uuid.uuid4())
     api[1].execute.side_effect = [SimpleNamespace(all=lambda: [row]), SimpleNamespace(all=list)]
-    assert (await api[0].post(URL, json={"sheet_id": SHEET_ID})).json() == {"rows": 1}
-    values = google[3].call_args.kwargs["json"]["values"][1]
-    assert all(values[index] == "'" + text for index in (1, 2, 3, 5))
+    google[3].side_effect = responses(sheet_meta(SEPT), {}, {})
+    assert (
+        await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    ).json()["rows"] == 1
+    data = written(google[3])
+    assert data[f"'{SEPT}'!A4:C203"][0][1] == "'" + text   # বিবরণ
+    assert data[f"'{SEPT}'!A4:C203"][0][2] == "'" + text   # খাত
+    # An unknown payment string falls through the map and must still be defused.
+    assert data[f"'{SEPT}'!E4:F203"][0][1] == "'" + text
 
 
-async def test_multiple_batches_one_header(api, google):
+async def test_many_db_pages_become_one_write(api, google):
+    """Keyset pagination yields several chunks; the sheet is written once."""
     row = (date(9999, 12, 31), "চা", "food", "চা", Decimal("1.00"), "cash", uuid.uuid4())
     api[1].execute.side_effect = [SimpleNamespace(all=lambda: [row])] * 2 + [
         SimpleNamespace(all=list)
     ]
-    assert (await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "9999-12"})).json() == {
-        "rows": 2
-    }
-    appends = [call for call in google[3].call_args_list if call.args[1].endswith(":append")]
-    assert [len(call.kwargs["json"]["values"]) for call in appends] == [2, 1]
+    tab = "ডিসেম্বর ৯৯৯৯"
+    google[3].side_effect = responses(sheet_meta(tab), {}, {})
+    assert (
+        await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "9999-12"})
+    ).json()["rows"] == 2
+    updates = [
+        c for c in google[3].call_args_list if c.args[1].endswith("/values:batchUpdate")
+    ]
+    assert len(updates) == 1
+    assert written(google[3])[f"'{tab}'!A4:C203"][:2] == [
+        ["9999-12-31", "চা", "চা"],
+        ["9999-12-31", "চা", "চা"],
+    ]
+
+
+# ── The whole-state ledger tabs ────────────────────────────────────────────
+# The DB mock is a plain side-effect queue, so these tests also pin the ORDER
+# the endpoint queries in: expense pages first (the last one empty), then
+# debts, then recurring rules, then the budget.
+
+
+async def test_debts_land_in_the_columns_the_sheet_does_not_compute(api, google):
+    """F (অবস্থা) is the sheet's own formula over the settle date.
+
+    Writing it here would let the column and the summary panel disagree, which
+    is the class of bug column D already cost this integration once.
+    """
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(
+            debt("2026-08-02", "করিম", "lend", "5000.00", "নগদে দিয়েছি"),
+            debt(
+                "2026-07-11",
+                "মুদি দোকান",
+                "borrow",
+                "800.00",
+                settled=datetime(2026, 8, 30, 19, 45, tzinfo=UTC),
+            ),
+        ),
+        page(),
+        single(None),
+    ]
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    assert response.json() == result(debts=2, skipped_tabs=[])
+
+    data = written(http)
+    assert data[f"'{DEBTS}'!A4:E103"][:2] == [
+        ["2026-08-02", "করিম", "ধার দিয়েছি", "5000.00", "নগদে দিয়েছি"],
+        ["2026-07-11", "মুদি দোকান", "ধার নিয়েছি", "800.00", ""],
+    ]
+    # The settle date is the date part only, and an open debt clears the cell.
+    assert data[f"'{DEBTS}'!G4:G103"][:2] == [[""], ["2026-08-30"]]
+    assert not any(
+        rng.startswith(f"'{DEBTS}'") and "F" in rng.split("!")[1] for rng in data
+    )
+
+
+async def test_recurring_rules_skip_the_group_and_monthly_equivalent(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(),
+        page(
+            rule("বাড়ি ভাড়া", "12000.00", "monthly", "2026-01-05", "2026-10-05", pay="bank"),
+            rule("চা ও কফি", "60.00", "daily", "2026-02-01", "2026-09-10", active=False),
+        ),
+        single(None),
+    ]
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    assert response.json() == result(recurring=2, skipped_tabs=[])
+
+    data = written(http)
+    assert data[f"'{RECUR}'!A4:A103"][:2] == [["বাড়ি ভাড়া"], ["চা ও কফি"]]
+    assert data[f"'{RECUR}'!C4:I103"][:2] == [
+        ["12000.00", "ব্যাংক ট্রান্সফার", "", "প্রতি মাসে", "2026-01-05", "2026-10-05", "চালু"],
+        ["60.00", "নগদ টাকা", "", "প্রতিদিন", "2026-02-01", "2026-09-10", "বন্ধ"],
+    ]
+    # B (গ্রুপ) and J (মাসিক সমমান) are between and beyond the two spans.
+    spans = {rng.split("!")[1] for rng in data if rng.startswith(f"'{RECUR}'")}
+    assert spans == {"A4:A103", "C4:I103"}
+
+
+async def test_budget_rows_follow_the_settings_sheet_order(api, google):
+    """A JSON map has no order worth trusting; সেটিংস does."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(),
+        page(),
+        single((Decimal("30000.00"), {"মাছ": 4000, "চাল": "2000.5", "বাড়ি ভাড়া": 12000})),
+    ]
+    http.side_effect = responses(
+        sheet_meta(*LEDGER, "সেটিংস"),
+        {"values": [["চাল", "মাছ", "বাড়ি ভাড়া"]]},
+        {},
+    )
+
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    assert response.json() == result(budget_categories=3, skipped_tabs=[])
+
+    data = written(http)
+    assert data[f"'{BUDGET}'!A4:B53"][:3] == [
+        ["চাল", "2000.50"],
+        ["মাছ", "4000.00"],
+        ["বাড়ি ভাড়া", "12000.00"],
+    ]
+    assert data[f"'{BUDGET}'!D2"] == [["30000.00"]]
+
+
+async def test_a_budget_category_the_workbook_lacks_sorts_last_and_is_named(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(),
+        page(rule("রিক্সা", "50.00", "daily", "2026-01-01", "2026-09-01")),
+        single((Decimal("500.00"), {"অচেনা খাত": 100, "চাল": 400})),
+    ]
+    http.side_effect = responses(
+        sheet_meta(*LEDGER, "সেটিংস"), {"values": [["চাল", "মাছ"]]}, {}
+    )
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    # Both the recurring rule's category and the budget row's are checked, not
+    # only the expenses' — each leaves its গ্রুপ blank the same way.
+    assert response.json()["unmapped"] == ["অচেনা খাত", "রিক্সা"]
+    assert written(http)[f"'{BUDGET}'!A4:B53"][:2] == [["চাল", "400.00"], ["অচেনা খাত", "100.00"]]
+
+
+@pytest.mark.parametrize("limit", ["", "abc", None, True, [], {"a": 1}, "NaN", "Infinity", "-1"])
+async def test_an_unparseable_budget_limit_is_dropped_not_written(api, google, limit):
+    """`cats` is free-form JSON. A limit the sheet cannot divide by would
+    poison that row's ব্যবহার and অবস্থা without saying so."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(),
+        page(),
+        single((Decimal("100.00"), {"চাল": limit, "মাছ": 40})),
+    ]
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    assert response.json()["budget_categories"] == 1
+    assert written(http)[f"'{BUDGET}'!A4:B53"][0] == ["মাছ", "40.00"]
+
+
+async def test_ledger_tabs_are_refreshed_by_a_single_month_sync_too(api, google):
+    """`month` narrows which expense months are touched, nothing else.
+
+    Refreshing the ledger only on a full sync would leave the sheet
+    trustworthy only after the right kind of sync, with nothing on the sheet
+    to say which kind was run last.
+    """
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(debt("2026-01-02", "করিম", "lend", "10.00")),
+        page(),
+        single(None),
+    ]
+    http.side_effect = responses(sheet_meta(SEPT, *LEDGER), {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    assert response.json() == result(months=[SEPT], debts=1, skipped_tabs=[])
+    assert f"'{DEBTS}'!A4:E103" in written(http)
+
+
+async def test_a_workbook_without_ledger_tabs_still_syncs_its_months(api, google):
+    """An older copy of the template is not a broken one. Refusing here would
+    break the expense sync this integration already promises."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page((date(2026, 9, 1), None, "food", "চা", Decimal("5.00"), "cash", uuid.uuid4())),
+        page(),
+    ]
+    http.side_effect = responses(sheet_meta(SEPT), {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    assert response.json() == result(rows=1, months=[SEPT])
+    assert set(written(http)) == {f"'{SEPT}'!A4:C203", f"'{SEPT}'!E4:F203"}
+    # Two expense pages and no ledger query: a skipped tab costs nothing.
+    assert db.execute.await_count == 2
+
+
+async def test_emptied_ledger_tabs_are_cleared(api, google):
+    """Deleting the last debt in the app has to delete it from the sheet."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [page(), page(), page(), single(None)]
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    assert response.json() == result(skipped_tabs=[])
+    data = written(http)
+    assert data[f"'{DEBTS}'!A4:E103"] == [[""] * 5] * 100
+    assert data[f"'{DEBTS}'!G4:G103"] == [[""]] * 100
+    assert data[f"'{BUDGET}'!A4:B53"] == [[""] * 2] * 50
+    assert data[f"'{BUDGET}'!D2"] == [[""]]
+    assert data[f"'{RECUR}'!A4:A103"] == [[""]] * 100
+    assert data[f"'{RECUR}'!C4:I103"] == [[""] * 7] * 100
+
+
+@pytest.mark.parametrize(
+    "which,records,limit",
+    [
+        (DEBTS, [debt("2026-01-01", "ক", "lend", "1.00")] * 101, 100),
+        (RECUR, [rule("চাল", "1.00", "monthly", "2026-01-01", "2026-02-01")] * 101, 100),
+    ],
+)
+async def test_a_full_ledger_sheet_refuses_before_writing(api, google, which, records, limit):
+    """A ledger sheet holding 100 of 101 records reads as the whole ledger."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    queued = {
+        DEBTS: [page(*records), page(), single(None)],
+        RECUR: [page(), page(*records), single(None)],
+    }[which]
+    db.execute.side_effect = [page(), *queued]
+    http.side_effect = responses(sheet_meta(*LEDGER))
+    response = await client.post(URL, json={"sheet_id": SHEET_ID})
+    error(response, 409, "sheets_ledger_full")
+    assert f"{which}: 101 / {limit}" in response.json()["detail"]["message_bn"]
+    assert len(http.call_args_list) == 1  # metadata only; nothing written
+
+
+async def test_syncing_the_ledger_twice_writes_the_same_thing(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+
+    def queue():
+        return [
+            page(),
+            page(debt("2026-08-02", "করিম", "lend", "5000.00")),
+            page(rule("বাড়ি ভাড়া", "12000.00", "monthly", "2026-01-05", "2026-10-05")),
+            single((Decimal("30000.00"), {"চাল": 2000})),
+        ]
+
+    db.execute.side_effect = queue()
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+    first = await client.post(URL, json={"sheet_id": SHEET_ID})
+    before = written(http)
+
+    http.reset_mock()
+    db.execute.side_effect = queue()
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+    second = await client.post(URL, json={"sheet_id": SHEET_ID})
+
+    assert first.json() == second.json()
+    assert written(http) == before
+    assert not any(c.args[1].endswith(":append") for c in http.call_args_list)
+
+
+async def test_ledger_amounts_are_numbers_not_bengali_digits(api, google):
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(debt("2026-08-02", "করিম", "lend", "1234.50")),
+        page(rule("চাল", "99.05", "monthly", "2026-01-01", "2026-02-01")),
+        single((Decimal("30000.00"), {"চাল": 2000})),
+    ]
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+    await client.post(URL, json={"sheet_id": SHEET_ID})
+    data = written(http)
+    figures = [
+        data[f"'{DEBTS}'!A4:E103"][0][3],
+        data[f"'{RECUR}'!C4:I103"][0][0],
+        data[f"'{BUDGET}'!A4:B53"][0][1],
+        data[f"'{BUDGET}'!D2"][0][0],
+    ]
+    assert figures == ["1234.50", "99.05", "2000.00", "30000.00"]
+    assert not any(ch in figure for figure in figures for ch in "০১২৩৪৫৬৭৮৯")
+
+
+@pytest.mark.parametrize("text", ["=1+1", "+1", "-1", "@SUM(A1)", "\t=1", "  =1"])
+async def test_every_ledger_text_column_is_formula_safe(api, google, text):
+    client, db, _ = api
+    _, _c, _f, http = google
+    db.execute.side_effect = [
+        page(),
+        page(debt("2026-08-02", text, "lend", "1.00", text)),
+        page(rule(text, "1.00", "monthly", "2026-01-01", "2026-02-01", pay=text, desc=text)),
+        single((Decimal("1.00"), {text: 1})),
+    ]
+    http.side_effect = responses(sheet_meta(*LEDGER), {})
+    await client.post(URL, json={"sheet_id": SHEET_ID})
+    data = written(http)
+    entry = data[f"'{DEBTS}'!A4:E103"][0]
+    assert entry[1] == entry[4] == "'" + text                        # পক্ষ, নোট
+    assert data[f"'{RECUR}'!A4:A103"][0][0] == "'" + text            # খাত
+    assert data[f"'{RECUR}'!C4:I103"][0][1] == "'" + text            # unknown pay
+    assert data[f"'{RECUR}'!C4:I103"][0][2] == "'" + text            # বিবরণ
+    assert data[f"'{BUDGET}'!A4:B53"][0][0] == "'" + text            # খাত
 
 
 async def test_openapi_uses_requested_sheet_field(api):

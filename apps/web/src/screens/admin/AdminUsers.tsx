@@ -496,7 +496,7 @@ export function AdminUsers() {
 
       {/* Floating bulk bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-40 flex max-w-[94vw] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-card border border-line/70 bg-surface/95 px-4 py-2.5 shadow-2xl backdrop-blur-md sm:gap-3.5 sm:rounded-full sm:px-5 sm:py-3">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex max-w-[94vw] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-card border border-line/70 bg-surface/95 px-4 py-2.5 shadow-2xl backdrop-blur-md sm:gap-3.5 sm:rounded-full sm:px-5 sm:py-3 lg:bottom-6">
           <div className="flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald text-xs font-bold text-accent-ink">
               {num(selectedIds.size, lang)}

@@ -2423,8 +2423,38 @@ export interface components {
         };
         /** SheetsExportResult */
         SheetsExportResult: {
+            /**
+             * Budget Categories
+             * @default 0
+             */
+            budget_categories: number;
+            /**
+             * Debts
+             * @default 0
+             */
+            debts: number;
+            /**
+             * Months
+             * @default []
+             */
+            months: string[];
+            /**
+             * Recurring
+             * @default 0
+             */
+            recurring: number;
             /** Rows */
             rows: number;
+            /**
+             * Skipped Tabs
+             * @default []
+             */
+            skipped_tabs: string[];
+            /**
+             * Unmapped
+             * @default []
+             */
+            unmapped: string[];
         };
         /** SheetsStatus */
         SheetsStatus: {
