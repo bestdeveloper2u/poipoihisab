@@ -24,13 +24,8 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useAuthStore } from "../../store/auth";
 import { useLangStore } from "../../store/lang";
-import {
-  AdminBanner,
-  AdminEmpty,
-  AdminHeader,
-  formatDate,
-  num,
-} from "./shared";
+import { formatDate, num } from "./format";
+import { AdminBanner, AdminEmpty, AdminHeader } from "./shared";
 
 const PAGE_SIZE = 50;
 

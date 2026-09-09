@@ -15,14 +15,12 @@ import { IconActivity } from "../../components/icons";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useLangStore } from "../../store/lang";
+import { formatDateTime, formatTtl, num } from "./format";
 import {
   AdminBanner,
   AdminCard,
   AdminHeader,
   AdminLoading,
-  formatDateTime,
-  formatTtl,
-  num,
 } from "./shared";
 
 function Row({

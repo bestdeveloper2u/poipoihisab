@@ -15,7 +15,8 @@ import { IconMic, IconPlug } from "../../components/icons";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useLangStore } from "../../store/lang";
-import { AdminBanner, AdminCard, AdminHeader, AdminLoading, num } from "./shared";
+import { num } from "./format";
+import { AdminBanner, AdminCard, AdminHeader, AdminLoading } from "./shared";
 
 function StatusPill({ ok, lang }: { ok: boolean; lang: "bn" | "en" }) {
   return (

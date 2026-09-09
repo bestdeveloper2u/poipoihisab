@@ -71,9 +71,11 @@ async def ensure_schema_ready(engine: AsyncEngine) -> None:
             sync_conn.execute(
                 text("ALTER TABLE profiles ADD COLUMN is_suspended BOOLEAN NOT NULL DEFAULT FALSE")
             )
-        # migration 0007 — the admin audit trail. Created lazily for the same
+        # migration 0007 — the admin audit trail. Created here for the same
         # reason as the columns above: a superadmin must never be able to
-        # suspend or bulk-delete on a deploy where the trail table is missing.
+        # suspend or bulk-delete on a deploy where the trail table is missing,
+        # and Alembic does not run on a serverless deploy. This is a
+        # once-per-process startup check (main.py), not a per-request one.
         if not insp.has_table("admin_audit_log"):
             from app.models.audit import AdminAuditLog
 

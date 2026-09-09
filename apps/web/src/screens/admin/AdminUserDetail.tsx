@@ -42,14 +42,8 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useAuthStore } from "../../store/auth";
 import { useLangStore } from "../../store/lang";
-import {
-  AdminBanner,
-  AdminCard,
-  AdminEmpty,
-  AdminLoading,
-  formatDate,
-  num,
-} from "./shared";
+import { formatDate, num } from "./format";
+import { AdminBanner, AdminCard, AdminEmpty, AdminLoading } from "./shared";
 
 type Tab = "expenses" | "debts" | "budgets" | "recurring";
 type PendingAction = "suspend" | "unsuspend" | "delete" | "revoke";

@@ -13,7 +13,8 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useLangStore } from "../../store/lang";
 import { parseUsersCsv } from "./csv";
-import { AdminBanner, AdminCard, AdminHeader, num } from "./shared";
+import { num } from "./format";
+import { AdminBanner, AdminCard, AdminHeader } from "./shared";
 
 export function AdminData() {
   const lang = useLangStore((s) => s.lang);

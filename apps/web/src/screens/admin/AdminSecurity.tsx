@@ -18,14 +18,13 @@ import { IconActivity, IconLock, IconUsers } from "../../components/icons";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useLangStore } from "../../store/lang";
+import { formatTtl, num } from "./format";
 import {
   AdminBanner,
   AdminEmpty,
   AdminHeader,
   AdminLoading,
   StatTile,
-  formatTtl,
-  num,
 } from "./shared";
 
 export function AdminSecurity() {

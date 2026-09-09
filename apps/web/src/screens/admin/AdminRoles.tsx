@@ -22,13 +22,13 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useAuthStore } from "../../store/auth";
 import { useLangStore } from "../../store/lang";
+import { formatDate } from "./format";
 import {
   AdminBanner,
   AdminCard,
   AdminEmpty,
   AdminHeader,
   AdminLoading,
-  formatDate,
 } from "./shared";
 
 interface Pending {

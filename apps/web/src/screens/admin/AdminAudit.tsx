@@ -16,13 +16,12 @@ import { IconHistory, IconSearch } from "../../components/icons";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useLangStore } from "../../store/lang";
+import { formatDateTime, num } from "./format";
 import {
   AdminBanner,
   AdminEmpty,
   AdminHeader,
   AdminLoading,
-  formatDateTime,
-  num,
 } from "./shared";
 
 const PAGE_SIZE = 50;

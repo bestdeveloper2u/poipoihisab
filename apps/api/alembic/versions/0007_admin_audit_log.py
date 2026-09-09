@@ -13,10 +13,9 @@ outlive both the admin who acted and the user they acted on (a cascade
 delete removes the profile, not the evidence). ``actor_email`` and
 ``target_label`` are denormalised snapshots for the same reason.
 
-``app.db.session.ensure_schema_ready`` also issues an equivalent lazy
-CREATE TABLE IF NOT EXISTS, so serverless deploys that cannot run Alembic
-still get the table — this migration exists so Alembic-managed databases
-track it too.
+``app.db.session.ensure_schema_ready`` also creates this table at startup,
+so serverless deploys that cannot run Alembic still get it — this migration
+exists so Alembic-managed databases track it too.
 """
 
 from collections.abc import Sequence

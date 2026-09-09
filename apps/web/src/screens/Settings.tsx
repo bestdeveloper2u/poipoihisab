@@ -148,6 +148,17 @@ export function Settings() {
   const setMotion = useMotionStore((s) => s.setMotion);
   const navigate = useNavigate();
 
+  /*
+   * Owner 2026-09-09: a superadmin keeps no hisab, so the cards that only
+   * make sense for a personal ledger — Google Sheets sync of their own
+   * expenses, local backup/restore of their own data, and the payment /
+   * expense-group catalogs — are not shown to them. Profile, language,
+   * theme, motion and session all still apply: a superadmin owns an account
+   * like anyone else, which is why settings itself is not role-split.
+   * Deployment-wide Sheets wiring lives on /admin/integrations instead.
+   */
+  const isSuperadmin = Boolean(user?.isSuperadmin);
+
   async function handleLogout() {
     await logout();
     navigate("/login", { replace: true });
@@ -190,25 +201,33 @@ export function Settings() {
             </Row>
           </Card>
 
-          <SheetsCard />
-          {/* Download/restore stays available independently of Google Sheets. */}
-          <DataSafety />
+          {!isSuperadmin && (
+            <>
+              <SheetsCard />
+              {/* Download/restore stays available independently of Google Sheets. */}
+              <DataSafety />
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-4">
-          {/* পেমেন্ট মাধ্যম (prototype payMethods card @867-875) */}
-          <Card title={w(lang, "payMethods")}>
-            {PAY_ORDER.map((pay) => (
-              <Row key={pay} label={PAY_LABELS[pay][lang]} />
-            ))}
-          </Card>
+          {!isSuperadmin && (
+            <>
+              {/* পেমেন্ট মাধ্যম (prototype payMethods card @867-875) */}
+              <Card title={w(lang, "payMethods")}>
+                {PAY_ORDER.map((pay) => (
+                  <Row key={pay} label={PAY_LABELS[pay][lang]} />
+                ))}
+              </Card>
 
-          {/* খরচের গ্রুপ তালিকা (prototype khataList @876-877) */}
-          <Card title={w(lang, "khataList")}>
-            {GROUP_ORDER.map((grp) => (
-              <Row key={grp} label={GROUP_LABELS[grp][lang]} />
-            ))}
-          </Card>
+              {/* খরচের গ্রুপ তালিকা (prototype khataList @876-877) */}
+              <Card title={w(lang, "khataList")}>
+                {GROUP_ORDER.map((grp) => (
+                  <Row key={grp} label={GROUP_LABELS[grp][lang]} />
+                ))}
+              </Card>
+            </>
+          )}
 
           {/* অ্যাপ + সেশন */}
           <Card title={lang === "bn" ? "অ্যাপ" : "App"}>

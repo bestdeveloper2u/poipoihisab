@@ -17,13 +17,13 @@ import { fmtTaka } from "../../lib/money";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
 import { useLangStore } from "../../store/lang";
+import { num } from "./format";
 import {
   AdminBanner,
   AdminEmpty,
   AdminHeader,
   AdminLoading,
   ShareBar,
-  num,
 } from "./shared";
 
 export function AdminCategories() {
