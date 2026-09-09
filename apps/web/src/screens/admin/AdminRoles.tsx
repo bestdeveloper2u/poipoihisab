@@ -114,7 +114,7 @@ export function AdminRoles() {
     : candidates.slice(0, 10);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-1 pb-12 pt-2">
+    <div className="w-full space-y-5 pb-12 pt-2">
       <AdminHeader
         icon={IconShield}
         title={w(lang, "navAdminRoles")}

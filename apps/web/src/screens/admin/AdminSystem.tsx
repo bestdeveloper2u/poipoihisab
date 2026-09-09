@@ -76,7 +76,7 @@ export function AdminSystem() {
   if (loading && !data) return <AdminLoading lang={lang} />;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 px-1 pb-12 pt-2">
+    <div className="w-full space-y-5 pb-12 pt-2">
       <AdminHeader
         icon={IconActivity}
         title={w(lang, "navAdminSystem")}
