@@ -77,9 +77,10 @@ export function refreshCookieSession(): Promise<AuthSession | null> {
   cookieRefreshInFlight ??= (async () => {
     try {
       // Typed client, credentials included: `kh_refresh` rides along in the
-      // request — but never in JS-readable form.
+      // request — but never in JS-readable form. 4-second timeout so page load never hangs.
       const { data, response } = await api.POST("/api/v1/auth/refresh-cookie", {
         credentials: "include",
+        signal: AbortSignal.timeout(4000),
       });
       // 401 (and any other non-OK) → "no session"; undocumented statuses come
       // back with `data: undefined` and are swallowed the same way. The body

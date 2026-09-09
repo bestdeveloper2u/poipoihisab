@@ -83,55 +83,62 @@ export const useAuthStore = create<AuthState>()(
       status: "loading",
 
       bootstrap: async () => {
-        // 1) Warm SPA session: in-memory access token still works.
-        if (get().accessToken) {
-          const me = await apiMe();
-          if (me.ok) {
-            set({ user: me.data, status: "authed" });
-            return;
+        try {
+          // Wrap the entire resolution in a 5s safety ceiling so cold starts or
+          // network hiccups can never freeze the UI in an infinite loading spinner.
+          await Promise.race([
+            (async () => {
+              // 1) Warm SPA session: in-memory access token still works.
+              if (get().accessToken) {
+                const me = await apiMe();
+                if (me.ok) {
+                  set({ user: me.data, status: "authed" });
+                  return;
+                }
+              }
+              // 2) Cold start, JSON transport: rotate the persisted refresh token.
+              const refreshToken = get().refreshToken;
+              if (refreshToken) {
+                const res = await apiRefresh(refreshToken);
+                if (res.ok) {
+                  setSession(set, res.data);
+                  return;
+                }
+                if (res.status !== 401 && res.status !== 403) {
+                  clearSession(set);
+                  return;
+                }
+              }
+              // 3) ADR-0008 (T12.3): HttpOnly cookie silent probe.
+              const session = await refreshCookieSession();
+              if (session) {
+                setSession(set, session);
+                return;
+              }
+              // 4) Both transports exhausted → anonymous.
+              if (refreshToken) {
+                clearSession(set);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+                }
+              } else {
+                set({ status: "anon" });
+              }
+            })(),
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error("auth_bootstrap_timeout")), 5000),
+            ),
+          ]);
+        } catch {
+          // If anything failed, timed out, or threw, guarantee transition away from "loading"
+          if (get().status === "loading") {
+            const hasToken = Boolean(get().refreshToken);
+            if (hasToken) {
+              clearSession(set);
+            } else {
+              set({ status: "anon" });
+            }
           }
-          // me() failed — the client middleware already attempted one silent
-          // refresh (JSON, then the cookie fallback) and, on total failure,
-          // dispatched auth-expired which cleared us.
-        }
-        // 2) Cold start, JSON transport: rotate the persisted refresh token.
-        //    The refresh response carries the user, so no separate me() call
-        //    is needed.
-        const refreshToken = get().refreshToken;
-        if (refreshToken) {
-          const res = await apiRefresh(refreshToken);
-          if (res.ok) {
-            setSession(set, res.data);
-            return;
-          }
-          if (res.status !== 401 && res.status !== 403) {
-            // Transient failure (network / 5xx): the cookie may hold a
-            // tombstoned token whose replay trips reuse detection and revokes
-            // an otherwise-live family — do NOT probe it (see lib/auth-cookie.ts).
-            clearSession(set);
-            return;
-          }
-        }
-        // 3) ADR-0008 (T12.3): the HttpOnly cookie may still hold a valid
-        //    refresh token even when localStorage was cleared (private mode,
-        //    storage purge) or the persisted token was rejected above. One
-        //    silent probe — on success this looks exactly like the JSON path.
-        const session = await refreshCookieSession();
-        if (session) {
-          setSession(set, session);
-          return;
-        }
-        // 4) Both transports exhausted → anonymous.
-        if (refreshToken) {
-          clearSession(set);
-          // A persisted session died on both transports — announce it so
-          // listeners drop whatever is left. A tokenless cold start stays
-          // quiet: nothing expired, there was never a session here.
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
-          }
-        } else {
-          set({ status: "anon" });
         }
       },
 
