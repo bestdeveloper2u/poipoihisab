@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 import requests
 from httpx import ASGITransport, AsyncClient
+from test_sheets_years import template
 
 from app.core.deps import get_current_user
 from app.db.session import get_db
@@ -155,6 +156,7 @@ def result(**overrides):
         "budget_categories": 0,
         "recurring": 0,
         "skipped_tabs": list(LEDGER),
+        "created_tabs": [],
     } | overrides
 
 
@@ -198,6 +200,91 @@ def written(http):
     call = next(c for c in http.call_args_list if c.args[1].endswith("/values:batchUpdate"))
     assert call.kwargs["json"]["valueInputOption"] == "USER_ENTERED"
     return {entry["range"]: entry["values"] for entry in call.kwargs["json"]["data"]}
+
+
+def rollover_fixture():
+    metadata, summary, registry = template()
+    # Expense-only fixture keeps the database queue focused on expenses.
+    metadata["sheets"] = [s for s in metadata["sheets"] if s["properties"]["title"] != BUDGET]
+    return metadata, summary, registry
+
+
+async def test_new_year_sync_creates_structure_before_writing_values(api, google):
+    metadata, summary, registry = rollover_fixture()
+    client, db, _ = api
+    row = (date(2027, 2, 1), None, "food", "চা", Decimal("42.00"), "cash", uuid.uuid4())
+    db.execute.side_effect = [page(row), page()]
+    http = google[3]
+    http.side_effect = responses(metadata, {}, {"sheets": [summary]}, {"values": registry}, {}, {})
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2027-02"})
+    assert response.status_code == 200, response.text
+    assert response.json()["rows"] == 1
+    assert len(response.json()["created_tabs"]) == 13
+    posts = [c for c in http.call_args_list if c.args[0] == "POST"]
+    assert len(posts) == 2
+    assert posts[0].args[1].endswith(SHEET_ID + ":batchUpdate")
+    assert posts[1].args[1].endswith("/values:batchUpdate")
+    assert written(http)[f"'{google[0]._tab_name(2027, 2)}'!E4:F203"][0] == ["42.00", "নগদ টাকা"]
+
+
+@pytest.mark.parametrize("stage", [2, 3, 4, 5])
+async def test_rollover_remote_failure_does_not_continue_or_rollback(api, google, stage):
+    metadata, summary, registry = rollover_fixture()
+    http = google[3]
+    http.side_effect = responses(metadata, {}, {"sheets": [summary]}, {"values": registry}, {}, {})[:stage] + [
+        SimpleNamespace(status_code=500),
+    ]
+    response = await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2027-02"})
+    error(response, 502, "sheets_upstream_error")
+    assert len(http.call_args_list) == stage + 1
+    # Do not delete newly created tabs on an ambiguous timeout: the write may
+    # actually have committed. A retry reads metadata again before proceeding.
+    assert not any("deleteSheet" in str(c.kwargs) for c in http.call_args_list)
+
+
+async def test_retry_after_rollover_does_not_duplicate_or_clear_new_comments(api, google):
+    metadata, _, _ = rollover_fixture()
+    for i, title in enumerate([
+        *[google[0]._tab_name(2027, m) for m in range(1, 13)], "বার্ষিক সারসংক্ষেপ ২০২৭",
+    ], 50):
+        metadata["sheets"].append({"properties": {"sheetId": i, "title": title}})
+    http = google[3]
+    http.side_effect = responses(metadata, {}, {})
+    response = await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2027-02"})
+    assert response.status_code == 200, response.text
+    assert response.json()["created_tabs"] == []
+    posts = [c for c in http.call_args_list if c.args[0] == "POST"]
+    assert len(posts) == 1 and posts[0].args[1].endswith("/values:batchUpdate")
+    assert all("G" not in r.split("!")[1] for r in written(http))
+
+
+async def test_full_new_year_month_refuses_before_creating_any_tabs(api, google):
+    metadata, _, _ = rollover_fixture()
+    row = (date(2027, 2, 1), None, "food", "চা", Decimal("1.00"), "cash", uuid.uuid4())
+    api[1].execute.side_effect = [page(*([row] * 201)), page()]
+    google[3].side_effect = responses(metadata)
+    response = await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2027-02"})
+    error(response, 409, "sheets_month_full")
+    assert len(google[3].call_args_list) == 1
+
+
+async def test_full_ledger_refuses_before_creating_new_year(api, google):
+    metadata, _, _ = rollover_fixture()
+    metadata["sheets"].append({"properties": {"sheetId": 99, "title": DEBTS}})
+    api[1].execute.side_effect = [page(), page(*([debt("2026-01-01", "person", "lend", "1")] * 101))]
+    google[3].side_effect = responses(metadata, {})
+    response = await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2027-02"})
+    error(response, 409, "sheets_ledger_full")
+    assert not any(c.args[0] == "POST" for c in google[3].call_args_list)
+
+
+async def test_partial_year_refuses_to_rebuild_a_missing_month(api, google):
+    metadata, summary, registry = rollover_fixture()
+    metadata["sheets"].append({"properties": {"sheetId": 99, "title": google[0]._tab_name(2027, 2)}})
+    google[3].side_effect = responses(metadata, {}, {"sheets": [summary]}, {"values": registry})
+    response = await api[0].post(URL, json={"sheet_id": SHEET_ID, "month": "2027-03"})
+    error(response, 409, "sheets_year_template_invalid")
+    assert not any(c.args[0] == "POST" for c in google[3].call_args_list)
 
 
 async def test_writes_into_the_month_tab_in_sheet_column_order(api, google):

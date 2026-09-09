@@ -27,10 +27,9 @@ sheet's own lookup owns it. A sync REPLACES the month it covers, so running it
 twice leaves the same result and an expense edited or deleted in the app is
 corrected in the sheet.
 
-Nothing here creates the workbook. A missing month tab is reported by name
-rather than invented, because a tab this code fabricates would have no
-formulas, no dropdowns and no place in the yearly summary — it would look
-right and total nothing.
+Nothing here creates the workbook. R3.3 extends an intact 2026 template with
+complete new years, including date validation and a separate yearly summary.
+Incomplete years still refuse; they are not silently reconstructed.
 
 ── WHY THE LEDGER TABS ARE WRITTEN ON EVERY SYNC ───────────────────────────
 
@@ -49,7 +48,7 @@ sync, with nothing on the sheet to say which kind was run last.
 A workbook without those tabs is an older copy of the template, not a broken
 one. Its ledger tabs are skipped and named in the response, because refusing
 would break the expense sync this integration already promises. A missing
-MONTH tab still refuses: filling the months is what the export is for.
+MONTH tab still refuses unless it belongs to a wholly absent, extendable year.
 
 The division of labour is the one column D established. Every column the sheet
 computes — `অবস্থা` on the debt sheet, `গ্রুপ` and `মাসিক সমমান` on the
@@ -96,6 +95,7 @@ from app.models.budget import Budget
 from app.models.debt import Debt
 from app.models.recurring import RecurringExpense
 from app.routers.export import CurrentUser, DbDep, _csv_bytes, _money
+from app.routers.sheets_years import SUMMARY, TemplateError, plan_years
 
 # google-auth is imported lazily (first Sheets use) — keeps serverless cold
 # starts lean for the 99% of traffic that never touches Sheets. Tests patch
@@ -229,8 +229,8 @@ def _missing_tabs(tabs: list[str]) -> HTTPException:
         "sheets_missing_month_tab",
         f"শিটে এই মাসের ট্যাব নেই: {names}। ‘দৈনিক খরচের হিসাব’ টেমপ্লেটের কপি ব্যবহার করুন।",
         f"The spreadsheet has no tab for: {names}. Use a copy of the "
-        f"দৈনিক খরচের হিসাব template — this export fills its monthly sheets and "
-        f"does not create them.",
+        f"দৈনিক খরচের হিসাব template. New years require an intact 2026 template; "
+        f"partly missing years must be restored manually.",
     )
 
 
@@ -375,6 +375,8 @@ class SheetsExportResult(BaseModel):
     #: created: a tab this code fabricated would carry none of the formulas
     #: that make the sheet worth having.
     skipped_tabs: list[str] = []
+    #: New month and yearly-summary tabs created by this sync (never existing tabs).
+    created_tabs: list[str] = []
 
 
 @router.get("/status")
@@ -601,7 +603,8 @@ async def export_sheets(
     base = f"{_BASE}/{body.sheet_id}"
 
     metadata = await run_in_threadpool(
-        _google, "GET", base, token, params={"fields": "sheets.properties.title"}
+        _google, "GET", base, token,
+        params={"fields": "sheets(properties,charts),namedRanges"},
     )
     try:
         titles = {sheet["properties"]["title"] for sheet in metadata.get("sheets", [])}
@@ -656,8 +659,11 @@ async def export_sheets(
     absent = [
         _tab_name(*key) for key in sorted(by_month) if _tab_name(*key) not in titles
     ]
-    if absent:
-        raise _missing_tabs(absent)
+    new_years = sorted({y for y, m in by_month if _tab_name(y, m) not in titles})
+    if new_years and not all(
+        title in titles for title in [SUMMARY, "সেটিংস", *[_tab_name(2026, m) for m in range(1, 13)]]
+    ):
+        raise _missing_tabs(absent or [_tab_name(*key) for key in by_month])
     overflow = [
         f"{_tab_name(*key)}: {len(rows)}"
         for key, rows in sorted(by_month.items())
@@ -722,6 +728,40 @@ async def export_sheets(
     if beyond:
         raise _ledger_full(beyond)
 
+    created_tabs: list[str] = []
+    if new_years:
+        # All row caps have fired before even planning a remote mutation. Read
+        # only summary cells/dimensions and the picker registry, not expenses.
+        snapshot = await run_in_threadpool(
+            _google, "GET", base, token,
+            params={"ranges": f"'{SUMMARY}'", "fields":
+                    "sheets(properties,charts,data(startRow,startColumn,"
+                    "rowMetadata(pixelSize,hiddenByUser),columnMetadata(pixelSize,hiddenByUser),"
+                    "rowData(values(userEnteredValue))))"},
+        )
+        registry = await run_in_threadpool(
+            _google, "GET", base + "/values/" + quote("'সেটিংস'!I:I", safe=""), token,
+            params={"valueRenderOption": "FORMULA"},
+        )
+        try:
+            structural, created_tabs = plan_years(
+                metadata, snapshot["sheets"][0], new_years, _tab_name,
+                registry.get("values", []),
+            )
+        except TemplateError as exc:
+            raise _error(409, "sheets_year_template_invalid",
+                         "নতুন বছরের শিট তৈরি করা যায়নি। মূল টেমপ্লেট ও মাসের তালিকা পরীক্ষা করুন।",
+                         f"No data was written. Cannot extend this template: {exc}") from None
+        except (KeyError, TypeError, IndexError, AttributeError):
+            raise _upstream() from None
+        # Duplicate + clear + retarget + picker expansion is one atomic batch.
+        # A later values failure leaves EMPTY new months, not copied expenses.
+        # Retrying sees those complete years and only retries the normal write.
+        await run_in_threadpool(
+            _google, "POST", base + ":batchUpdate", token,
+            json={"requests": structural},
+        )
+
     # Replace every owned cell in one request, including empty trailing cells.
     # A separate clear can succeed before a failed write and erase the month.
     # Empty strings clear cells (nulls would skip them). D's lookup formulas
@@ -773,6 +813,7 @@ async def export_sheets(
         debts=len(debts),
         budget_categories=len(budget),
         recurring=len(recurring),
+        created_tabs=created_tabs,
         skipped_tabs=[
             tab
             for tab in (_TAB_DEBTS, _TAB_BUDGET, _TAB_RECURRING)

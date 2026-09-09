@@ -2429,6 +2429,11 @@ export interface components {
              */
             budget_categories: number;
             /**
+             * Created Tabs
+             * @default []
+             */
+            created_tabs: string[];
+            /**
              * Debts
              * @default 0
              */

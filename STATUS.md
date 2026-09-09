@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1 and R3.2, pulled forward on request) · slices done: 13 / 25 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.3, pulled forward on request) · slices done: 13 / 26 · building: **nothing**
 
 ---
 
@@ -42,6 +42,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
 | [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
 | [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
+| [!]  | **R3.3** Multi-year Sheets ledger | `POST /export/sheets` | endpoint |
 
 <!--
 Keep the counter above in step with the ticked boxes — the audit compares them.
@@ -57,6 +58,33 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-09 (R3.3) — **A new year needs more than renamed month tabs.**
+
+The owner selected a separate summary per year. Read-only inspection of the supplied
+workbook found that monthly date validation explicitly names 2026; duplicating a
+tab without changing that rule would reject the year it claims to represent. The
+rollover planner now duplicates twelve months, clears inherited inputs/comments
+(including rows below the sync capacity), updates month titles and leap-aware date
+rules, and builds one summary with copied formulas, dimensions, conditional formats
+and explicitly retargeted chart series. The original summary stays unchanged. The
+budget month registry and picker expand without changing its selected month; occupied
+registry-extension cells cause a refusal. Partial years and unsupported templates
+are not silently repaired.
+
+All month/ledger overflow checks precede structural writes. Preparation is one Google
+batch, followed by the existing values batch. A failed or timed-out second call does
+not trigger deletion: empty prepared tabs may remain, or the write may already have
+committed. A retry inspects metadata and reuses the year. The response adds
+`created_tabs`; OpenAPI and the TypeScript contract were regenerated. No UI layout
+changed, no production credentials were read, and neither personal XLSX was modified
+or staged. Documentation now names rollover limits and the native-Google smoke test.
+
+Verification: the full gate passes (549 web, 10 core, 360 API tests; 7 optional API
+skips), including 126 focused Sheets tests. `pnpm run doctor` still reports the
+missing root `.env`; test verification used the existing temporary Windows Python
+environment, not the Linux `.venv` in the repository. No live Google round trip was
+run. R3.3 is `[!]` with the precise remaining clause in `BACKLOG.md`, not marked done.
 
 ### 2026-09-09 (R3.2 handoff review) — **A template rebuild is not a safe ledger migration.**
 

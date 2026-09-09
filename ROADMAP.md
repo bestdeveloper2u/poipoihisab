@@ -97,10 +97,11 @@ superadmin off from the member experience and gives the platform the oversight
 it had no way to provide: an audit trail, role management, cross-user session
 control, taxonomy repair, and a system-health probe.
 
-**R3 — not yet scoped**, except for R3.1 and R3.2 below, both asked for during R2:
+**R3 — not yet fully scoped**, except for R3.1–R3.3 below, requested during R2:
 R3.1 after a real workbook showed the export could not populate it, R3.2 after the
 owner asked whether the sheet could hold everything, so that the ledger survives the
-app going away. Read `BACKLOG.md` at the R2 boundary for the rest.
+app going away. R3.3 follows that handoff, with the owner's explicit choice of
+one summary per year. Read `BACKLOG.md` at the R2 boundary for the rest.
 
 ## Part 5 — Screen by screen
 
@@ -363,8 +364,9 @@ goes as a number, not Bengali digits — under `USER_ENTERED` "৪৮০.০০"
 `SUM` skips it. The payment enum arrives as the exact strings the sheet's dropdown
 validates against. A sync replaces all 200 owned rows in one request, including empty
 trailing cells, so it is idempotent without a clear-then-write failure window. Columns
-`D` (formulas) and `G` (manual comments) are untouched. A missing month tab or a month over 200 rows refuses the whole sync before
-any write, rather than fabricating a formula-less tab or truncating.
+`D` (formulas) and `G` (manual comments) are untouched. A month over 200 rows refuses
+the whole sync before any write. Missing tabs also refuse unless R3.3 can prepare
+a complete new year from the intact template; no formula-less tabs or truncation.
 **Data** — `expenses` via the CSV generator's own query; the workbook's `'সেটিংস'!B2:B`
 for the category check.
 **Done** — syncing the same month twice leaves the sheet identical and its total
@@ -387,7 +389,7 @@ sheets: `অবস্থা` on the debt sheet, `গ্রুপ` and `মাস
 sheet, the four computed columns and the unbudgeted-spend line on the budget sheet.
 A workbook without these tabs is an older copy of the template, not a broken one —
 its ledger tabs are skipped and named in the response and its months still sync,
-where a missing MONTH tab still refuses. A ledger tab over its row count refuses the
+where a missing MONTH tab refuses unless R3.3 can prepare a new year. A ledger tab over its row count refuses the
 whole sync before writing, like a full month. Budget rows follow the workbook's own
 category order. `apps/api/scripts/add_ledger_sheets.py` builds the three sheets and
 names the same geometry.
@@ -398,6 +400,31 @@ clears its row rather than being left behind; a workbook with none of the three 
 still syncs its months and names all three as skipped; and the response tells the
 three cases apart — a tab written with zero records, a tab that is not there, and a
 tab too full to write.
+
+**R3.3 Multi-year Sheets ledger** · `POST /export/sheets`
+
+**UI** — existing Settings actions; `created_tabs` in the response names newly
+created months and summaries. No new screen or offline queue: Google sync remains
+online-only and must report an uncertain remote outcome rather than replay silently.
+**Does** — when a requested month belongs to a wholly absent year, extend the intact
+2026 template with twelve duplicated, empty month tabs and a separate
+`বার্ষিক সারসংক্ষেপ YYYY` (Bengali digits). Preserve the original summary. Update new
+month date validation, including leap days; copy summary formulas, formatting,
+dimensions and charts with new-year references; extend MonthTabs and the budget
+picker without changing its selected value. Refuse partial-year reconstruction,
+altered templates, registry collisions, more than ten new years per call, and
+automatic years outside 1900–9999. Existing tabs retain the previous sync behavior.
+All expense/ledger capacity checks happen before any write. Structural preparation
+is one atomic Google batch, followed by the existing single values batch. If the
+values result is uncertain, prepared months may exist; inspect and retry. Never
+delete tabs to roll back an ambiguous remote outcome.
+**Data** — the existing owner-scoped exports; Google sheet IDs, summary formula/chart
+metadata and settings column I. No personal XLSX is uploaded or altered.
+**Done** — mocked tests prove request geometry, formula/chart retargeting, leap-year
+validation, collision refusal, capacity-before-write and retry without duplication.
+A live disposable Google workbook must also prove new-year totals, charts, dropdowns,
+unchanged old-year totals and identical results on the second sync. Until that round
+trip, this slice is `[!]`, not done.
 
 ## Part 6 — Verification
 

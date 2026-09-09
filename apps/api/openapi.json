@@ -2959,6 +2959,14 @@
             "title": "Budget Categories",
             "type": "integer"
           },
+          "created_tabs": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Created Tabs",
+            "type": "array"
+          },
           "debts": {
             "default": 0,
             "title": "Debts",

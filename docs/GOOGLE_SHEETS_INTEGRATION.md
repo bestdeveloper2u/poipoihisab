@@ -78,7 +78,7 @@ sequenceDiagram
     API->>Google: Refresh service-account access token
     API->>Google: Read spreadsheet tab metadata
     API->>DB: Read current user's expenses in 500-row pages
-    API->>API: Group by month; refuse missing tabs or over 200 rows
+    API->>API: Group by month; check template and all row limits
     API->>Google: Read template category list if present
     API->>Google: Replace A:C and E:F in one values:batchUpdate
     API-->>Web: {rows, months, unmapped}
@@ -312,7 +312,8 @@ document type are rejected.
 
 ## Spreadsheet output contract
 
-The API requires existing Bengali month tabs and never creates tabs. It replaces
+The API uses the template's Bengali month tabs. R3.3 can prepare a wholly absent
+year from an intact 2026 template; see below. For each synced month it replaces
 rows 4–203 in A:C and E:F using `USER_ENTERED`. Unused trailing cells receive
 empty strings in the same request, avoiding a separate destructive clear.
 
@@ -332,6 +333,36 @@ No headers are added. A selected empty month is cleared; Sync all targets only
 months still containing app expenses. To clear a formerly exported month whose
 last expense was deleted, explicitly request that month. More than 200 entries
 in any target month refuses the entire export; use CSV for larger months.
+
+### New years (R3.3)
+
+Keep all twelve 2026 month tabs, `বার্ষিক সারসংক্ষেপ`, and `সেটিংস` as the source
+template. A sync for a wholly absent year prepares twelve empty months and a
+separate summary such as `বার্ষিক সারসংক্ষেপ ২০২৭`. The original summary is not
+renamed or overwritten. Existing month tabs continue to sync as before; partially
+missing years are not reconstructed automatically.
+
+New month tabs retain the template's formulas, dropdowns and conditional formats,
+but inherited expense inputs and manual-comment cells start empty. Date validation
+is updated for each new month, including February 29 in leap years. The new summary
+copies the source grid, dimensions and charts, with references retargeted to the
+new year. The budget's MonthTabs list and dropdown expand; its selected month stays
+unchanged. Notes occupying the required settings-column-I space cause a refusal,
+not an overwrite. Customized monthly charts, missing template components or an
+altered registry also require manual attention. Automatic rollover supports
+1900–9999 and at most ten new years per sync; use month-filtered calls for larger
+historical imports.
+
+All month and ledger capacity limits are checked before writing. New-year
+preparation uses one structural batch, then the existing `USER_ENTERED` values
+batch. Google documents atomic application within a
+[spreadsheet batch](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate),
+not across those two calls. If the second call fails or times out, newly prepared
+tabs can remain while the data-write outcome is unconfirmed. Inspect before retrying;
+the retry reuses those tabs and never copies source expenses again. Do not delete
+the new tabs as an automatic rollback. `created_tabs` names tabs created by a
+successful request. This behavior is mock-tested, not yet verified against a live
+Google workbook; use an approved disposable copy for the first rollover.
 
 The response reports categories absent from `'সেটিংস'!B2:B` without changing
 them, and the Settings toast now names them alongside the ledger counts and any
@@ -456,7 +487,8 @@ Successful response:
   "debts": 6,
   "budget_categories": 9,
   "recurring": 3,
-  "skipped_tabs": []
+  "skipped_tabs": [],
+  "created_tabs": []
 }
 ```
 
@@ -496,6 +528,7 @@ Integration errors use a localized detail object:
 | 401 | Authentication error | The Poi Poi Hisab access token is missing, invalid, or expired | Sign in or refresh the session |
 | 403 | `sheets_permission_denied` | Google denied one of the spreadsheet operations | Share the exact spreadsheet with `sa_email` as Editor |
 | 409 | `sheets_missing_month_tab` | A required Bengali month tab is absent | Use a template copy with matching year/month tabs |
+| 409 | `sheets_year_template_invalid` | A new year cannot safely be prepared | Restore the intact 2026 template, resolve the named registry/layout issue, or use CSV; nothing was written |
 | 409 | `sheets_month_full` | A target month exceeds the fixed 200-entry template limit | Use CSV export; inserting spreadsheet rows does not raise this limit |
 | 409 | `sheets_ledger_full` | A ledger tab has more records than its fixed row count (100 debts, 50 budget categories, 100 recurring rules) | Nothing was written. Use `GET /export/backup.json` for the complete set |
 | 422 | `sheets_invalid_sheet` | The spreadsheet ID or URL failed validation | Use a bare ID or an HTTPS `docs.google.com/spreadsheets/d/...` URL |
@@ -628,7 +661,7 @@ the sheet does not already contain the expected rows.
 Run the focused backend contract suite:
 
 ```powershell
-uv --directory apps/api run pytest tests/test_sheets_export.py -q
+uv --directory apps/api run pytest tests/test_sheets_export.py tests/test_sheets_years.py -q
 ```
 
 Run the focused web client and Settings suites:
@@ -652,6 +685,13 @@ screen, and that the recurring sheet's monthly commitment matches the rules on
 `/recurring`. This live round trip remains open in BACKLOG.md; mocked tests do
 not prove it.
 
+For R3.3, add a 2027 expense and a February 29, 2028 expense to a dedicated test
+account and sync to an approved disposable template copy. Confirm twelve months
+and one summary per new year; numeric new-year totals and charts; date and budget
+dropdowns; no inherited input/comment rows; and unchanged 2026 totals. Sync again
+and confirm no additional tabs or duplicate rows. R3.3 remains open until this
+native-Google check is recorded.
+
 The ledger sheets' formulas are verified separately and by a different means:
 `add_ledger_sheets.py` writes them, sample rows are filled in, and the workbook
 is recalculated in LibreOffice so every computed cell is read back as a number
@@ -665,6 +705,7 @@ about Google.
 | API configuration | `apps/api/app/core/config.py` | Declares the service-account setting |
 | API lifecycle | `apps/api/app/main.py` | Bridges settings into the Sheets router environment |
 | Sheets backend | `apps/api/app/routers/sheets.py` | Credential loading, validation, token refresh, monthly replacement, and errors |
+| Year rollover planner | `apps/api/app/routers/sheets_years.py` | Atomic structural request plan: empty month copies, new-year summary/charts, date validation and picker expansion |
 | Shared export query | `apps/api/app/routers/export.py` | Owner filter, date bounds, ordering, CSV columns, money serialization, and paging |
 | Workbook template migration | `apps/api/scripts/add_ledger_sheets.py` | Builds the three ledger sheets — headers, formulas, dropdowns, conditional formats — and names the geometry the router writes into |
 | Web client | `apps/web/src/lib/sheets.ts` | Status/export requests, URL validation, and browser persistence |
