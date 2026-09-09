@@ -228,7 +228,8 @@ column; an unconfigured deployment says so instead of failing opaquely.
 
 **R2.1 Admin overview** · `/admin`
 
-**UI** — a deployment warning banner first, then nine KPI tiles, a quick-links
+**UI** — a deployment warning banner first, then eight KPI tiles (ten metrics;
+new users and current-month volume are contextual hints), a quick-links
 grid, and the six most recent admin actions.
 **Does** — the warning list comes from `/admin/system` and renders above the
 numbers, because a MemoryKV fallback makes every number below it less

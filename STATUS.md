@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** · slices done: 12 / 23 · building: **nothing**
+**Current release: R2** · slices done: 13 / 23 · building: **nothing**
 
 ---
 
@@ -29,7 +29,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R1.10** Bengali voice entry | overlay | feature |
 | [x]  | **R1.11** Offline-first shell | PWA | feature |
 | [x]  | **R1.12** Google Sheets sync | `/settings` | feature |
-| [!]  | **R2.1** Admin overview | `/admin` | screen |
+| [x]  | **R2.1** Admin overview | `/admin` | screen |
 | [!]  | **R2.2** Users roster | `/admin/users` | screen |
 | [!]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
 | [!]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
@@ -55,6 +55,38 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-09 (visual review) — **R2.1 is visually verified, and its verification blocker was a test-runtime mismatch.**
+
+The seeded local superadmin path showed the deployment warning above every
+number, with both the MemoryKV and SQLite fallbacks named. At 1440px the 236px
+sidebar and four-column KPI rows held; at 980px the sidebar became the four-item
+bottom tab bar and the main surface took the full width; at 375px the two-column
+tiles, warning text, quick links and recent-activity card stayed inside the
+viewport with bottom padding clear of the fixed tab bar. There was no horizontal
+overflow at any width. Bengali and English were both inspected at 375px.
+
+**The premise that failed was in the roadmap, not the UI.** R2.1 promised nine
+KPI tiles, but the deliberate implementation renders eight tiles containing ten
+metrics: new users belongs under total users, and current-month volume belongs
+under total volume. Splitting either contextual number into a ninth tile would
+make the information hierarchy worse and break the balanced 4×2 desktop grid,
+so `ROADMAP.md` now records the screen that actually exists.
+
+**The verification diagnosis also needed correcting.** The first run had seven
+auth-cookie failures before fetch. `AbortSignal.timeout` exists in jsdom, but
+Node's native `Request` rejects a jsdom signal as the wrong class. A direct
+reproduction produced `Expected signal to be an instance of AbortSignal`.
+The shared test setup now obtains Node's abort classes through
+`node:util`'s native controller factory, keeping them compatible with Node's
+fetch classes. All 17 tests in the affected suites pass without changing the
+production authentication code or removing its four-second timeout.
+
+**Final verification:** `pnpm verify` passes: nine audits, web/mobile
+typechecks, ESLint, 10 core tests, 548 web tests, Ruff, and 297 API tests
+(six optional PostgreSQL tests skipped). Python checks used an isolated Windows
+environment with the frozen `uv.lock`; the existing Linux environment was
+left in place. Existing uncommitted Sheets work was preserved separately.
 
 ### 2026-09-09 — **This document set was retrofitted onto a project that was already shipping, and the retrofit immediately caught three things a green build had been hiding.**
 
