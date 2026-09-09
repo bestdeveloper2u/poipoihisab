@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+/*
+ * T17.2 (ADR-0017): Noto Sans Bengali + Inter self-hosted from /fonts/*
+ * (PWA precache). T19.1 dedupe: Google's css2 endpoint served VARIABLE
+ * fonts — the per-weight woff2 files were byte-identical (md5-verified),
+ * so one file per family×subset now serves every weight through the
+ * @font-face variable range `font-weight: 400 800`
+ * (https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face).
+ * font-style / font-display: swap and the css2 unicode-range subsetting
+ * (bengali/latin/latin-ext) are preserved verbatim; src rewritten to the
+ * local woff2 files. Replaces the fonts.googleapis.com <link> that
+ * ADR-0016 had to allow through the CSP; stacks (--font-bn / --font-en)
+ * below are unchanged.
+ */
+
+/* Inter — latin-ext (variable file, weights 400-800) */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-variable-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Inter — latin (variable file, weights 400-800) */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-variable-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Noto Sans Bengali — bengali (variable file, weights 400-800) */
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/noto-bengali-variable-bengali.woff2') format('woff2');
+  unicode-range: U+0951-0952, U+0964-0965, U+0980-09FE, U+1CD0, U+1CD2, U+1CD5-1CD6, U+1CD8, U+1CE1, U+1CEA, U+1CED, U+1CF2, U+1CF5-1CF7, U+200C-200D, U+20B9, U+25CC, U+A8F1;
+}
+/* Noto Sans Bengali — latin-ext (variable file, weights 400-800) */
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/noto-bengali-variable-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Noto Sans Bengali — latin (variable file, weights 400-800) */
+@font-face {
+  font-family: 'Noto Sans Bengali';
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/noto-bengali-variable-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
+ * `dark:` utilities key off the data-theme attribute on <html> (set by the
+ * FOUC script in index.html + src/store/theme.ts), NOT prefers-color-scheme.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Brand tokens — mirrored from @poipoihisab/core (COLORS / RADII, ADR-0006).
+ * Core stays the single source of truth; these values map 1:1 to its CSS_VARS.
+ */
+@theme {
+  --color-emerald: #0e6b50;
+  --color-emerald-soft: #e3f0ea;
+  --color-accent-ink: #ffffff;
+  --color-ink: #1c2321;
+  /* T9.3 contrast fix: #6b7570 → #616b66 (muted/surface-2 4.15 → 4.80:1). */
+  --color-muted: #616b66;
+  --color-ivory: #f6f5f1;
+  --color-surface: rgba(255, 255, 255, 0.82);
+  --color-surface-2: rgba(241, 239, 233, 0.75);
+  --color-line: rgba(230, 227, 219, 0.75);
+  --color-danger: #b42318;
+  /* T9.3 contrast fix: #b45309 → #aa4e08 (warning chip 4.39 → 4.78:1). */
+  --color-warning: #aa4e08;
+  --font-bn: "Noto Sans Bengali", system-ui, sans-serif;
+  --font-en: "Inter", system-ui, sans-serif;
+  --radius-card: 16px;
+  --radius-control: 10px;
+  --shadow-card: 0 4px 20px -2px rgba(28, 35, 33, 0.05), 0 1px 2px rgba(28, 35, 33, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.85);
+}
+
+/*
+ * Dark tokens — same variable names redefined under [data-theme="dark"]
+ * (values from the frozen prototype www/index.html @23-29). Every Tailwind
+ * utility that references --color-* switches with the attribute, so screens
+ * stay on token classes instead of one-off colors.
+ */
+[data-theme="dark"] {
+  --color-emerald: #2fb98f;
+  --color-emerald-soft: #15302a;
+  --color-accent-ink: #06231a;
+  --color-ink: #e9edeb;
+  --color-muted: #93a09a;
+  --color-ivory: #0f1312;
+  --color-surface: rgba(23, 29, 27, 0.80);
+  --color-surface-2: rgba(30, 38, 35, 0.75);
+  --color-line: rgba(38, 48, 44, 0.80);
+  /* T9.3 contrast fix: #e5484d → #e96367 (danger/surface 4.37 → 5.25:1,
+   * on-danger button text 4.25 → 5.10:1; hue preserved, lightness only). */
+  --color-danger: #e96367;
+  --color-warning: #d99a3d;
+  --shadow-card: 0 4px 24px -2px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+/*
+ * Glassmorphism design tokens:
+ * Semi-transparent surfaces, specular edge highlights, and diffuse elevation.
+ * Maintains >= 4.5:1 contrast for all text.
+ */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.76);
+  --glass-surface: rgba(255, 255, 255, 0.82);
+  --glass-surface-2: rgba(241, 239, 233, 0.72);
+  --glass-header: rgba(246, 245, 241, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-border-subtle: rgba(230, 227, 219, 0.75);
+  --glass-shadow: 0 4px 20px -2px rgba(28, 35, 33, 0.05), 0 1px 2px rgba(28, 35, 33, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.85);
+  --glass-modal-shadow: 0 12px 40px -4px rgba(28, 35, 33, 0.16), 0 2px 4px rgba(28, 35, 33, 0.06), inset 0 1px 1.5px rgba(255, 255, 255, 0.9);
+  --ambient-emerald: rgba(14, 107, 80, 0.07);
+  --ambient-amber: rgba(170, 78, 8, 0.04);
+}
+
+[data-theme="dark"] {
+  --glass-bg: rgba(23, 29, 27, 0.74);
+  --glass-surface: rgba(23, 29, 27, 0.80);
+  --glass-surface-2: rgba(30, 38, 35, 0.72);
+  --glass-header: rgba(15, 19, 18, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-subtle: rgba(38, 48, 44, 0.8);
+  --glass-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  --glass-modal-shadow: 0 16px 48px -4px rgba(0, 0, 0, 0.65), 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 1.5px rgba(255, 255, 255, 0.12);
+  --ambient-emerald: rgba(47, 185, 143, 0.10);
+  --ambient-amber: rgba(217, 154, 61, 0.06);
+}
+
+/*
+ * Glassmorphism utility components:
+ * Hardware-accelerated backdrop blur with specular rim highlights.
+ */
+.ambient-mesh {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle at 90% 10%, var(--ambient-emerald) 0%, transparent 45%),
+    radial-gradient(circle at 10% 90%, var(--ambient-amber) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, var(--ambient-emerald) 0%, transparent 55%);
+}
+
+.glass-header {
+  background: var(--glass-header);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--glass-border-subtle);
+}
+
+.glass-tabbar {
+  background: var(--glass-header);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-top: 1px solid var(--glass-border-subtle);
+}
+
+.glass-sidebar {
+  background: var(--glass-surface);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-right: 1px solid var(--glass-border-subtle);
+}
+
+.glass-card {
+  background: var(--glass-surface);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid var(--glass-border-subtle);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-panel {
+  background: var(--glass-surface);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-border-subtle);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-modal {
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-modal-shadow);
+}
+
+.glass-fab {
+  background: var(--glass-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border-subtle);
+  box-shadow: var(--glass-shadow);
+}
+
+/*
+ * Native glassmorphism enhancement for all rounded-card containers:
+ * Blurs background content and adds tactile frosted sheen.
+ */
+.rounded-card {
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+
+body {
+  background-color: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-bn);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-emerald);
+  outline-offset: 2px;
+}
+
+/*
+ * T9.3 (WCAG 2.2 SC 1.4.3): `placeholder:text-muted/70` composites the muted
+ * token at 70% alpha, which lands at 2.73:1 (light) / 3.79:1 (dark) on
+ * bg-surface inputs — below the 4.5:1 minimum for placeholder text. Render
+ * placeholders at full-token strength instead; unlayered rules like this one
+ * win the cascade over Tailwind's layered utilities regardless of order.
+ */
+.placeholder\:text-muted\/70::placeholder {
+  color: var(--color-muted);
+}
+
+/*
+ * Motion kill-switch (prototype @418): user preference "off" from Settings
+ * freezes every animation/transition app-wide.
+ */
+[data-motion="off"] *,
+[data-motion="off"] *::before,
+[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* OS-level reduced motion mirrors the "off" preference (prototype @512). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Bottom tab bar clears the iOS/Android home-indicator safe area. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Floating action button sits above the tab bar (clear of it on desktop). */
+.fab-pos {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 64rem) {
+  .fab-pos {
+    bottom: calc(26px + env(safe-area-inset-bottom));
+  }
+}

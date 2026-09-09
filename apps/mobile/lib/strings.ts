@@ -1,0 +1,686 @@
+/**
+ * Mobile-only UI strings not (yet) in @poipoihisab/core's DICT.
+ * Bengali-first defaults with English parity, mirroring core's i18n shape.
+ * Promote to packages/core/src/i18n.ts when keys are needed cross-app.
+ */
+import type * as api from "./api";
+
+export const STRINGS = {
+  bn: {
+    account: "অ্যাকাউন্ট",
+    signingIn: "লগইন হচ্ছে…",
+    errBadCreds: "ইমেইল বা পাসওয়ার্ড সঠিক নয়।",
+    errNetwork: "সার্ভারে পৌঁছানো যাচ্ছে না — ইন্টারনেট সংযোগ দেখুন।",
+    errGeneric: "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+
+    // Expenses list (T3.1)
+    expensesTitle: "খরচসমূহ",
+    addExpenseBtn: "নতুন খরচ",
+    loadingList: "খরচ লোড হচ্ছে…",
+    emptyList: "এখনও কোনো খরচ নেই।",
+    emptyListHint: "নিচের বাটন থেকে প্রথম খরচটি যোগ করুন।",
+    loadMore: "আরও দেখুন",
+    loadingMore: "আরও আনা হচ্ছে…",
+    retry: "আবার চেষ্টা করুন",
+    entriesLoaded: "টি এন্ট্রি দেখানো হচ্ছে",
+
+    // Add expense form (T3.1)
+    addTitle: "খরচ যোগ করুন",
+    amount: "পরিমাণ (টাকা)",
+    amountPlaceholder: "যেমন: 890",
+    category: "খাত",
+    categoryPlaceholder: "যেমন: চা, রিকশা, কাঁচাবাজার",
+    groupLabel: "গ্রুপ",
+    payLabel: "পেমেন্ট মাধ্যম",
+    dateLabel: "তারিখ (YYYY-MM-DD)",
+    descLabel: "বিবরণ (ঐচ্ছিক)",
+    descPlaceholder: "যেমন: সপ্তাহের বাজার",
+    save: "সংরক্ষণ করুন",
+    saving: "সংরক্ষণ হচ্ছে…",
+    errAmount: "সঠিক পরিমাণ লিখুন (০ এর বেশি)।",
+    errCategory: "খাতের নাম লিখুন।",
+    errDate: "তারিখ YYYY-MM-DD ফরম্যাটে দিন।",
+    errUnauthorized: "সেশন শেষ হয়ে গেছে — আবার লগইন করুন।",
+
+    // Dashboard (T3.4)
+    openDashboard: "ড্যাশবোর্ড",
+    dashboardTitle: "মাসিক হিসাব",
+    monthTotal: "এই মাসের মোট খরচ",
+    monthCount: "টি এন্ট্রি",
+    byGroup: "গ্রুপ অনুযায়ী",
+    recentExpenses: "সাম্প্রতিক খরচ",
+    noExpensesThisMonth: "এই মাসে কোনো খরচ নেই।",
+    openDebts: "ধার-দেনা",
+
+    // Dashboard empty-state CTA (T22.3 — prototype emptyCta parity)
+    emptyCtaTitle: "আজ কোনো খরচ হয়নি",
+    emptyCtaAdd: "✏️ এখনই যোগ করুন",
+    emptyCtaVoice: "🎙 বলে যোগ করুন",
+
+    // All-expenses list (T12.2 — prototype screen-list parity)
+    listTitle: "খরচ তালিকা",
+    listSub: "সব মাসের এন্ট্রি এক জায়গায়",
+    searchPlaceholder: "খুঁজুন — খাত, বিবরণ…",
+    allMonths: "সব",
+    openAllExpenses: "সব খরচ",
+    entriesShort: "টি এন্ট্রি",
+    exportCsv: "CSV",
+    csvPreparing: "তৈরি হচ্ছে…",
+    exportingCsv: "CSV নামানো হচ্ছে…",
+    csvDone: "CSV ডাউনলোড হয়েছে ✓",
+    csvShareFailed: "CSV ফাইলটি তৈরি বা শেয়ার করা যায়নি — ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।",
+    emptySearch: "কিছু পাওয়া যায়নি।",
+
+    // Register toggle (T12.2 — prototype authscreen parity)
+    modeLogin: "লগইন",
+    modeRegister: "রেজিস্টার",
+    namePlaceholder: "আপনার নাম (ঐচ্ছিক)",
+    registerBtn: "অ্যাকাউন্ট খুলুন",
+    registering: "অ্যাকাউন্ট খুলছি…",
+    errEmailTaken: "এই ইমেইলে একটা অ্যাকাউন্ট আছে — লগইন করুন।",
+    errWeakPassword: "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।",
+
+    // Debts (T3.4)
+    debtsTitle: "ধার-দেনা",
+    statusOpen: "চলমান",
+    statusSettled: "পরিশোধিত",
+    statusAll: "সব",
+    dirLend: "ধার দিয়েছি",
+    dirBorrow: "ধার নিয়েছি",
+    addDebt: "নতুন ধার",
+    party: "কার সাথে",
+    partyPlaceholder: "যেমন: রফিক, করিম চাচা",
+    dirLabel: "ধারের ধরন",
+    noteLabel: "নোট (ঐচ্ছিক)",
+    notePlaceholder: "যেমন: বাসা ভাড়ার অগ্রিম",
+    loadingDebts: "ধার লোড হচ্ছে…",
+    emptyDebts: "কোনো ধার নেই।",
+    emptyDebtsHint: "নিচের বাটন থেকে প্রথম ধারটি যোগ করুন।",
+    pay: "পরিশোধ",
+    payTitle: "পরিশোধের পরিমাণ (টাকা)",
+    payPlaceholder: "যেমন: 500",
+    confirmPay: "পরিশোধ করুন",
+    paying: "পরিশোধ হচ্ছে…",
+    payFull: "সম্পূর্ণ পরিশোধিত ✓",
+    payPartial: "আংশিক পরিশোধ — বাকি",
+    settledOn: "পরিশোধিত হয়েছে",
+    cancel: "বাতিল",
+    errParty: "কার সাথে ধার, লিখুন।",
+    errDebtAmount: "সঠিক পরিমাণ লিখুন (০ এর বেশি)।",
+
+    // Report (T5.1)
+    reportTitle: "রিপোর্ট",
+    modeMonthly: "মাসিক",
+    modeYearly: "বার্ষিক",
+    yearTotal: "এই বছরের মোট খরচ",
+    loadingReport: "রিপোর্ট লোড হচ্ছে…",
+    noExpensesThisYear: "এই বছরে কোনো খরচ নেই।",
+    byMonth: "মাস অনুযায়ী",
+    prevYear: "আগের বছর",
+    nextYear: "পরের বছর",
+
+    // Report month KPIs + prev-month compare (T13.1 — prototype screen-month parity)
+    kpiEntries: "এন্ট্রি সংখ্যা",
+    kpiAvg: "দৈনিক গড়",
+    kpiMaxDay: "সর্বোচ্চ খরচের দিন",
+    kpiMaxGroup: "সর্বোচ্চ খাত",
+    cmpPrevTitle: "মাসের তুলনা",
+    vsPrev: "গত মাসের চেয়ে",
+    cmpMore: "বেশি",
+    cmpLess: "কম",
+    cmpNoPrev: "গত মাসের কোনো ডেটা নেই",
+
+    // Month screen (T14.5 — prototype screen-month parity)
+    monthTitle: "মাসিক হিসাব",
+    monthSub: "মাসিক সারসংক্ষেপ — আপনার শিটের মতোই",
+    monthTotalCard: "মোট মাসিক ব্যয়",
+    allEntries: "এই মাসের খরচ",
+    cmpThis: "এই মাস",
+    cmpPrev: "গত মাস",
+    cmpDiff: "পার্থক্য",
+    cmpEntries: "এন্ট্রি",
+
+    // Budget (T10.1)
+    budgetTitle: "বাজেট",
+    budgetMonth: "মাস",
+    prevMonth: "আগের মাস",
+    nextMonth: "পরের মাস",
+    budgetLimit: "মাসিক সীমা (৳)",
+    budgetLimitPlaceholder: "যেমন: 20000",
+    budgetSpent: "খরচ",
+    budgetUsed: "ব্যবহৃত",
+    budgetCats: "খাতভিত্তিক বাজেট",
+    budgetLoading: "বাজেট লোড হচ্ছে…",
+    budgetNoLimit: "সীমা নির্ধারিত নেই — উপরে সীমা দিন।",
+    budgetNoCats: "এই মাসে খাতভিত্তিক তথ্য নেই।",
+    budgetNoCatLimit: "সীমা নেই",
+    budgetStatusOk: "ভালো",
+    budgetStatusWarn: "সতর্ক",
+    budgetStatusOver: "সীমা ছাড়িয়ে",
+    budgetSaved: "সংরক্ষিত ✓",
+    budgetEditCatLimit: "সীমা বদলান",
+    errBudgetLimit: "সঠিক সীমা লিখুন (০ এর বেশি)।",
+
+    // Recurring expenses (T16.3)
+    recurringTitle: "পুনরাবৃত্ত খরচ",
+    openRecurring: "পুনরাবৃত্ত",
+    addRecurring: "নতুন পুনরাবৃত্তি",
+    loadingRecurring: "পুনরাবৃত্তি লোড হচ্ছে…",
+    emptyRecurring: "কোনো পুনরাবৃত্ত খরচ নেই।",
+    emptyRecurringHint: "নিচের বাটন থেকে প্রথমটি যোগ করুন।",
+    freqLabel: "ঘনত্ব",
+    freqDaily: "দৈনিক",
+    freqWeekly: "সাপ্তাহিক",
+    freqMonthly: "মাসিক",
+    freqYearly: "বার্ষিক",
+    everyDaily: "প্রতি দিন",
+    everyWeekly: "প্রতি সপ্তাহে",
+    everyMonthly: "প্রতি মাসে",
+    everyYearly: "প্রতি বছরে",
+    startDateLabel: "শুরুর তারিখ (YYYY-MM-DD)",
+    nextRun: "পরবর্তী",
+    onLabel: "চালু",
+    offLabel: "বন্ধ",
+    delete: "মুছুন",
+    confirmDelete: "নিশ্চিতভাবে মুছবেন?",
+    cancelDelete: "থাক",
+    runNow: "এখন চালান",
+    running: "চালানো হচ্ছে…",
+    toastRecurringAdded: "পুনরাবৃত্তি যোগ হয়েছে ✓",
+    toastRecurringDeleted: "পুনরাবৃত্তি মুছে ফেলা হয়েছে ✓",
+    toastRecurringRunSuffix: "টি খরচ যোগ হয়েছে ✓",
+    toastRecurringRunZero: "নতুন কোনো খরচ যোগ হয়নি — সব আপ-টু-ডেট ✓",
+    toastRecurringBootAdded: "টি আবর্তনশীল খরচ যোগ হয়েছে",
+
+    // Settings (T11.3)
+    settings: "সেটিংস",
+    profile: "প্রোফাইল",
+    name: "নাম",
+    email: "ইমেইল",
+    language: "ভাষা",
+    theme: "থিম",
+    light: "লাইট",
+    dark: "ডার্ক",
+    system: "সিস্টেম",
+    langBn: "বাংলা",
+    langEn: "English",
+    voiceLang: "ভয়েস ভাষা",
+    voiceLangValue: "বাংলা (bn-BD)",
+    version: "ভার্সন",
+    logout: "লগ আউট",
+
+    // Settings — data safety (T21.3 — ADR-0012 backup/restore, web Settings parity)
+    dataSafety: "ডেটা নিরাপত্তা",
+    backupDl: "ব্যাকআপ ডাউনলোড",
+    backupSub: "সব খরচ, ধার-দেনা ও বাজেট — একটি JSON ফাইলে",
+    backupStarted: "তৈরি হচ্ছে…",
+    toastBackupDone: "ব্যাকআপ ডাউনলোড হয়েছে ✓",
+    toastBackupFailed: "ব্যাকআপ নামানো যায়নি",
+    restoreTitle: "ব্যাকআপ থেকে ফিরিয়ে আনুন",
+    restoreSub: "ব্যাকআপের JSON পেস্ট করে বর্তমান সব ডেটা বদলে দিন",
+    restore: "রিস্টোর",
+    restoreGo: "রিস্টোর করুন",
+    restoreWarn: "ফিরিয়ে আনলে বর্তমান খরচ, ধার-দেনা ও বাজেট মুছে ব্যাকআপের ডেটা বসবে।",
+    pastePlaceholder: "এখানে ব্যাকআপের JSON পেস্ট করুন…",
+    restoring: "ফিরিয়ে আনা হচ্ছে…",
+    restoreBadJson: "এটি Poi Poi Hisab ব্যাকআপের JSON মনে হচ্ছে না — আবার দেখুন।",
+    restoreCountExpenses: "খরচ",
+    restoreCountDebts: "ধার",
+    toastRestoreDone: "পুনরুদ্ধার হয়েছে ✓",
+
+    // Voice entry (T15.2 — prototype addscreen mic/overlay parity)
+    addSub: "ম্যানুয়ালি লিখুন — অথবা নিচের মাইকে চেপে বলুন",
+    voiceUnavailable: "ভয়েস এই বিল্ডে নেই — ডেভেলপমেন্ট বিল্ড প্রয়োজন",
+    voiceHoldHint: "মাইকে চেপে ধরে বলুন — যেমন “চায়ে ৪০ টাকা, রিকশায় ৫০ টাকা”",
+    voiceListening: "শুনছি…",
+    voiceHeard: "আপনি বলেছেন",
+    voiceParsing: "খরচ বুঝে নিচ্ছি…",
+    voiceNoItems: "কোনো খরচ বোঝা যায়নি — আবার বলুন।",
+    voiceSaveAll: "সব সংরক্ষণ",
+    voiceErr: "ভয়েসে খরচ যোগ করা যায়নি।",
+    voicePermDenied: "মাইক্রোফোনের অনুমতি ছাড়া ভয়েস চলবে না।",
+
+    // Toasts (T15.2 — global themed pill, bn/en via prefs)
+    toastExpenseAdded: "খরচ যোগ হয়েছে ✓",
+    toastExpenseUpdated: "খরচ আপডেট হয়েছে ✓",
+    toastExpenseDeleted: "খরচ মুছে ফেলা হয়েছে ✓",
+    toastDebtAdded: "ধার যোগ হয়েছে ✓",
+    toastDebtPaid: "পরিশোধ হয়েছে ✓",
+    toastDebtDeleted: "ধার মুছে ফেলা হয়েছে ✓",
+    toastBudgetSaved: "বাজেট সংরক্ষিত ✓",
+    toastCsvDone: "CSV ডাউনলোড হয়েছে ✓",
+    toastCsvFailed: "CSV ডাউনলোড করা যায়নি",
+    toastVoiceSaved: "ভয়েস থেকে খরচ সংরক্ষিত ✓",
+    toastVoiceFailed: "ভয়েস থেকে সংরক্ষণ করা যায়নি",
+
+    // Budget-threshold nudge at add-time (T32.2 — web twin); {cat}/{pct} are
+    // interpolated in lib/budgetNudge.ts (pct as bn digits in this locale)
+    budgetNudgeWarn: "{cat}: বাজেটের {pct}% খরচ হয়েছে",
+    budgetNudgeOver: "{cat}: বাজেট ছাড়িয়ে গেছে ({pct}%)",
+
+    // Draft autosave (T19.3 — add-expense form persisted via SecureStore)
+    toastDraftRestored: "অসম্পূর্ণ খরচের খসড়া পুনরুদ্ধার হয়েছে",
+
+    // Offline outbox (T31.1 — web T23.1 twin): neutral tone, never "error"
+    toastSavedOffline: "অফলাইনে সংরক্ষিত — ইন্টারনেট এলে যোগ হবে",
+
+    // Date quick-chips + hint (T20.3) and khata recents row (T20.4-mob)
+    dayToday: "আজ",
+    dayYesterday: "গতকাল",
+    dateHint: "ভুলে যাওয়া খরচ? ক্যালেন্ডার থেকে আগের যেকোনো তারিখ বেছে নিন",
+    recentsLabel: "সাম্প্রতিক খাত",
+
+    // Amount quick-bump chips (T23.3 — prototype .qchips/bump parity)
+    bump10: "+১০",
+    bump50: "+৫০",
+    bump100: "+১০০",
+    bump500: "+৫০০",
+    bump10A11y: "+১০ টাকা যোগ করুন",
+    bump50A11y: "+৫০ টাকা যোগ করুন",
+    bump100A11y: "+১০০ টাকা যোগ করুন",
+    bump500A11y: "+৫০০ টাকা যোগ করুন",
+
+    // Duplicate-add guard (T24.3 — web T24.1 twin; WCAG 2.2 SC 3.3.4
+    // "checked" submissions: https://www.w3.org/TR/WCAG22/#error-prevention-legal-financial-data)
+    dupTitle: "সম্ভাব্য ডুপ্লিকেট খরচ",
+    dupFormWarn: "একই খরচ আগেই যোগ হয়েছে বলে মনে হচ্ছে — আসলেই দ্বিতীয়টি হলে তবুও যোগ করুন, নাহলে পরিমাণ বা খাত বদলান।",
+    dupVoiceWarn: "নিচের খরচগুলো সবেমাত্র যোগ হয়েছে বলে মনে হচ্ছে — দুবার যোগ হওয়া আটকাতে আগে মিলিয়ে নিন।",
+    dupTag: "আগেই আছে",
+    dupSaveAnyway: "তবুও সংরক্ষণ করুন",
+    dupAddAnyway: "তবুও যোগ করুন",
+
+    // Biometric app-lock (T29.1)
+    appLock: "বায়োমেট্রিক লক",
+    appLockDesc: "অ্যাপে ফিরে এলে বায়োমেট্রিক দিয়ে খুলতে হবে",
+    appLockNoBiometric: "এই ডিভাইসে বায়োমেট্রিক নেই",
+    appLockPrompt: "খুলতে অনুমতি দিন",
+    appLockBrand: "পই পই হিসাব",
+  },
+  en: {
+    account: "Account",
+    signingIn: "Signing in…",
+    errBadCreds: "Incorrect email or password.",
+    errNetwork: "Cannot reach the server — check your connection.",
+    errGeneric: "Something went wrong. Please try again.",
+
+    // Expenses list (T3.1)
+    expensesTitle: "Expenses",
+    addExpenseBtn: "New expense",
+    loadingList: "Loading expenses…",
+    emptyList: "No expenses yet.",
+    emptyListHint: "Add your first expense with the button below.",
+    loadMore: "Load more",
+    loadingMore: "Loading more…",
+    retry: "Try again",
+    entriesLoaded: "entries shown",
+
+    // Add expense form (T3.1)
+    addTitle: "Add expense",
+    amount: "Amount (taka)",
+    amountPlaceholder: "e.g. 890",
+    category: "Category",
+    categoryPlaceholder: "e.g. tea, rickshaw, groceries",
+    groupLabel: "Group",
+    payLabel: "Payment method",
+    dateLabel: "Date (YYYY-MM-DD)",
+    descLabel: "Description (optional)",
+    descPlaceholder: "e.g. weekly groceries",
+    save: "Save",
+    saving: "Saving…",
+    errAmount: "Enter a valid amount (greater than 0).",
+    errCategory: "Enter a category name.",
+    errDate: "Enter the date as YYYY-MM-DD.",
+    errUnauthorized: "Session expired — please sign in again.",
+
+    // Dashboard (T3.4)
+    openDashboard: "Dashboard",
+    dashboardTitle: "Monthly summary",
+    monthTotal: "This month's total",
+    monthCount: "entries",
+    byGroup: "By group",
+    recentExpenses: "Recent expenses",
+    noExpensesThisMonth: "No expenses this month.",
+    openDebts: "Debts",
+
+    // Dashboard empty-state CTA (T22.3 — prototype emptyCta parity)
+    emptyCtaTitle: "No expenses yet today",
+    emptyCtaAdd: "✏️ Add now",
+    emptyCtaVoice: "🎙 Speak to add",
+
+    // All-expenses list (T12.2 — prototype screen-list parity)
+    listTitle: "All expenses",
+    listSub: "Every month's entries in one place",
+    searchPlaceholder: "Search — category, description…",
+    allMonths: "All",
+    openAllExpenses: "All expenses",
+    entriesShort: "entries",
+    exportCsv: "CSV",
+    csvPreparing: "Preparing…",
+    exportingCsv: "Downloading CSV…",
+    csvDone: "CSV downloaded ✓",
+    csvShareFailed: "Couldn't open the CSV file — please try again.",
+    emptySearch: "Nothing found.",
+
+    // Register toggle (T12.2 — prototype authscreen parity)
+    modeLogin: "Log in",
+    modeRegister: "Register",
+    namePlaceholder: "Your name (optional)",
+    registerBtn: "Create account",
+    registering: "Creating account…",
+    errEmailTaken: "An account with this email already exists — log in instead.",
+    errWeakPassword: "Password must be at least 8 characters.",
+
+    // Debts (T3.4)
+    debtsTitle: "Debts",
+    statusOpen: "Open",
+    statusSettled: "Settled",
+    statusAll: "All",
+    dirLend: "Lent out",
+    dirBorrow: "Borrowed",
+    addDebt: "New debt",
+    party: "Party",
+    partyPlaceholder: "e.g. Rafik, Uncle Karim",
+    dirLabel: "Direction",
+    noteLabel: "Note (optional)",
+    notePlaceholder: "e.g. rent advance",
+    loadingDebts: "Loading debts…",
+    emptyDebts: "No debts yet.",
+    emptyDebtsHint: "Add your first debt with the button below.",
+    pay: "Pay back",
+    payTitle: "Payment amount (taka)",
+    payPlaceholder: "e.g. 500",
+    confirmPay: "Confirm payment",
+    paying: "Paying…",
+    payFull: "Fully settled ✓",
+    payPartial: "Partially paid — remaining",
+    settledOn: "Settled on",
+    cancel: "Cancel",
+    errParty: "Enter who the debt is with.",
+    errDebtAmount: "Enter a valid amount (greater than 0).",
+
+    // Report (T5.1)
+    reportTitle: "Report",
+    modeMonthly: "Monthly",
+    modeYearly: "Yearly",
+    yearTotal: "This year's total",
+    loadingReport: "Loading report…",
+    noExpensesThisYear: "No expenses this year.",
+    byMonth: "By month",
+    prevYear: "Previous year",
+    nextYear: "Next year",
+
+    // Report month KPIs + prev-month compare (T13.1 — prototype screen-month parity)
+    kpiEntries: "Entries",
+    kpiAvg: "Daily avg",
+    kpiMaxDay: "Top day",
+    kpiMaxGroup: "Top category",
+    cmpPrevTitle: "Month comparison",
+    vsPrev: "vs last month",
+    cmpMore: "more",
+    cmpLess: "less",
+    cmpNoPrev: "No data for last month",
+
+    // Month screen (T14.5 — prototype screen-month parity)
+    monthTitle: "Monthly summary",
+    monthSub: "Monthly summary — just like your sheet",
+    monthTotalCard: "Total monthly spend",
+    allEntries: "This month's entries",
+    cmpThis: "This month",
+    cmpPrev: "Last month",
+    cmpDiff: "Difference",
+    cmpEntries: "entries",
+
+    // Budget (T10.1)
+    budgetTitle: "Budget",
+    budgetMonth: "Month",
+    prevMonth: "Previous month",
+    nextMonth: "Next month",
+    budgetLimit: "Monthly limit (৳)",
+    budgetLimitPlaceholder: "e.g. 20000",
+    budgetSpent: "Spent",
+    budgetUsed: "Used",
+    budgetCats: "Category budgets",
+    budgetLoading: "Loading budget…",
+    budgetNoLimit: "No limit set — set one above.",
+    budgetNoCats: "No category data for this month.",
+    budgetNoCatLimit: "No limit",
+    budgetStatusOk: "Good",
+    budgetStatusWarn: "Watch",
+    budgetStatusOver: "Over limit",
+    budgetSaved: "Saved ✓",
+    budgetEditCatLimit: "Edit limit",
+    errBudgetLimit: "Enter a valid limit (greater than 0).",
+
+    // Recurring expenses (T16.3)
+    recurringTitle: "Recurring expenses",
+    openRecurring: "Recurring",
+    addRecurring: "New recurring",
+    loadingRecurring: "Loading recurring…",
+    emptyRecurring: "No recurring expenses yet.",
+    emptyRecurringHint: "Add your first one with the button below.",
+    freqLabel: "Frequency",
+    freqDaily: "Daily",
+    freqWeekly: "Weekly",
+    freqMonthly: "Monthly",
+    freqYearly: "Yearly",
+    everyDaily: "Every day",
+    everyWeekly: "Every week",
+    everyMonthly: "Every month",
+    everyYearly: "Every year",
+    startDateLabel: "Start date (YYYY-MM-DD)",
+    nextRun: "Next",
+    onLabel: "On",
+    offLabel: "Off",
+    delete: "Delete",
+    confirmDelete: "Delete for sure?",
+    cancelDelete: "Keep",
+    runNow: "Run now",
+    running: "Running…",
+    toastRecurringAdded: "Recurring expense added ✓",
+    toastRecurringDeleted: "Recurring expense deleted ✓",
+    toastRecurringRunSuffix: "expenses created ✓",
+    toastRecurringRunZero: "No new expenses — everything is up to date ✓",
+    toastRecurringBootAdded: "recurring expenses added",
+
+    // Settings (T11.3) — segment labels stay বাংলা/English in both locales,
+    // and the voice chip stays bn-BD (matches the prototype).
+    settings: "Settings",
+    profile: "Profile",
+    name: "Name",
+    email: "Email",
+    language: "Language",
+    theme: "Theme",
+    light: "Light",
+    dark: "Dark",
+    system: "System",
+    langBn: "বাংলা",
+    langEn: "English",
+    voiceLang: "Voice language",
+    voiceLangValue: "বাংলা (bn-BD)",
+    version: "Version",
+    logout: "Log out",
+
+    // Settings — data safety (T21.3 — ADR-0012 backup/restore, web Settings parity)
+    dataSafety: "Data safety",
+    backupDl: "Download backup",
+    backupSub: "All expenses, debts and budgets in one JSON file",
+    backupStarted: "Preparing…",
+    toastBackupDone: "Backup downloaded ✓",
+    toastBackupFailed: "Backup download failed",
+    restoreTitle: "Restore from a backup",
+    restoreSub: "Paste a backup's JSON to replace all current data",
+    restore: "Restore",
+    restoreGo: "Restore now",
+    restoreWarn: "Restoring deletes your current expenses, debts and budgets and inserts the backup.",
+    pastePlaceholder: "Paste the backup JSON here…",
+    restoring: "Restoring…",
+    restoreBadJson: "This doesn't look like a Poi Poi Hisab backup JSON — check it and try again.",
+    restoreCountExpenses: "expenses",
+    restoreCountDebts: "debts",
+    toastRestoreDone: "restored ✓",
+
+    // Voice entry (T15.2 — prototype addscreen mic/overlay parity)
+    addSub: "Type it in — or press the mic below and speak",
+    voiceUnavailable: "Voice needs a development build",
+    voiceHoldHint: "Hold the mic and speak — e.g. “tea 40 taka, rickshaw 50 taka”",
+    voiceListening: "Listening…",
+    voiceHeard: "You said",
+    voiceParsing: "Working out the expenses…",
+    voiceNoItems: "Couldn't catch any expense — try again.",
+    voiceSaveAll: "Save all",
+    voiceErr: "Couldn't add expenses by voice.",
+    voicePermDenied: "Voice needs microphone permission.",
+
+    // Toasts (T15.2 — global themed pill, bn/en via prefs)
+    toastExpenseAdded: "Expense added ✓",
+    toastExpenseUpdated: "Expense updated ✓",
+    toastExpenseDeleted: "Expense deleted ✓",
+    toastDebtAdded: "Debt added ✓",
+    toastDebtPaid: "Payment saved ✓",
+    toastDebtDeleted: "Debt deleted ✓",
+    toastBudgetSaved: "Budget saved ✓",
+    toastCsvDone: "CSV downloaded ✓",
+    toastCsvFailed: "CSV download failed",
+    toastVoiceSaved: "Expenses saved from voice ✓",
+    toastVoiceFailed: "Couldn't save from voice",
+
+    // Budget-threshold nudge at add-time (T32.2 — web twin); {cat}/{pct} are
+    // interpolated in lib/budgetNudge.ts
+    budgetNudgeWarn: "{cat}: {pct}% of budget spent",
+    budgetNudgeOver: "{cat}: over budget ({pct}%)",
+
+    // Draft autosave (T19.3 — add-expense form persisted via SecureStore)
+    toastDraftRestored: "Restored your unfinished expense draft",
+
+    // Offline outbox (T31.1 — web T23.1 twin): neutral tone, never "error"
+    toastSavedOffline: "Saved offline — will add when you're back online",
+
+    // Date quick-chips + hint (T20.3) and khata recents row (T20.4-mob)
+    dayToday: "Today",
+    dayYesterday: "Yesterday",
+    dateHint: "Forgot a cost? Pick any earlier date from the calendar",
+    recentsLabel: "Recent khatas",
+
+    // Amount quick-bump chips (T23.3 — prototype .qchips/bump parity)
+    bump10: "+10",
+    bump50: "+50",
+    bump100: "+100",
+    bump500: "+500",
+    bump10A11y: "add 10 taka",
+    bump50A11y: "add 50 taka",
+    bump100A11y: "add 100 taka",
+    bump500A11y: "add 500 taka",
+
+    // Duplicate-add guard (T24.3 — web T24.1 twin; WCAG 2.2 SC 3.3.4
+    // "checked" submissions: https://www.w3.org/TR/WCAG22/#error-prevention-legal-financial-data)
+    dupTitle: "Possible duplicate expense",
+    dupFormWarn: "You seem to have added this expense already — tap Add anyway only if it really is a second one.",
+    dupVoiceWarn: "The items below look like expenses you just added — review them first so nothing is saved twice.",
+    dupTag: "already added",
+    dupSaveAnyway: "Save anyway",
+    dupAddAnyway: "Add anyway",
+
+    // Biometric app-lock (T29.1)
+    appLock: "Biometric lock",
+    appLockDesc: "Require biometrics when you return to the app",
+    appLockNoBiometric: "No biometrics available on this device",
+    appLockPrompt: "Unlock Poi Poi Hisab",
+    appLockBrand: "Poi Poi Hisab",
+  },
+} as const;
+
+/** Short month labels for the yearly by_month mini chart (index 0 = January). */
+export const MONTH_LABELS: Record<"bn" | "en", readonly string[]> = {
+  bn: [
+    "জানু",
+    "ফেব",
+    "মার্চ",
+    "এপ্রিল",
+    "মে",
+    "জুন",
+    "জুলাই",
+    "আগ",
+    "সেপ্ট",
+    "অক্টো",
+    "নভে",
+    "ডিসে",
+  ],
+  en: [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ],
+};
+
+/**
+ * Full month names for day labels — "৫ সেপ্টেম্বর" style (T13.1 max-spend-day
+ * KPI). Mirrors the web catalog's BN_MONTHS/EN_MONTHS.
+ */
+export const MONTH_NAMES: Record<"bn" | "en", readonly string[]> = {
+  bn: [
+    "জানুয়ারি",
+    "ফেব্রুয়ারি",
+    "মার্চ",
+    "এপ্রিল",
+    "মে",
+    "জুন",
+    "জুলাই",
+    "আগস্ট",
+    "সেপ্টেম্বর",
+    "অক্টোবর",
+    "নভেম্বর",
+    "ডিসেম্বর",
+  ],
+  en: [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ],
+};
+
+export type MobileStringKey = keyof typeof STRINGS.bn;
+
+/** UI language — "bn" is the Bengali-first default. */
+export type Lang = keyof typeof STRINGS;
+
+/** Bengali labels for the API's 8 expense groups (grp column). */
+export const GROUP_LABELS: Record<api.ExpenseGroup, string> = {
+  food: "খাবার",
+  housing: "বাসা",
+  utility: "ইউটিলিটি",
+  transport: "যাতায়াত",
+  health: "স্বাস্থ্য",
+  education: "শিক্ষা",
+  personal: "ব্যক্তিগত",
+  other: "অন্যান্য",
+};
+
+/** Bengali labels for the API's 6 payment methods (pay column). */
+export const PAY_LABELS: Record<api.PayMethod, string> = {
+  cash: "নগদ টাকা",
+  bkash: "বিকাশ",
+  nagad: "নগদ",
+  rocket: "রকেট",
+  card: "কার্ড",
+  bank: "ব্যাংক",
+};
+
+

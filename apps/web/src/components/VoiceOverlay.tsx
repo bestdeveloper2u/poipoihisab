@@ -1,0 +1,1065 @@
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { moneyToNumber, toBnDigits } from "@poipoihisab/core";
+import type { Expense, ParsedExpense } from "@poipoihisab/api-client";
+import {
+  useExpenseMutations,
+  useDebtMutations,
+  useBudgetMutation,
+  useVoiceParse,
+} from "../lib/queries";
+import { groupName, monthLabel, normalizeAmount, payName, todayIso, ymOfIso } from "../lib/catalog";
+import { w } from "../lib/web-i18n";
+import { fmtTaka } from "../lib/money";
+import { parseBudgetAmount, parseDebtText, type ParsedDebt } from "../lib/parseDebt";
+import { parseRecurringText, type ParsedRecurring } from "../lib/parseRecurring";
+import { collapseRepeatedRuns } from "../lib/dictation";
+import {
+  dupKey,
+  fetchExpensesForDays,
+  findBatchDuplicateKeys,
+  findDuplicateExpenses,
+  itemsHaveDuplicates,
+} from "../lib/duplicate";
+import { useLangStore } from "../store/lang";
+import { Modal } from "./Modal";
+import { Segmented } from "./Segmented";
+import { toast } from "../lib/toast";
+import { IconMic } from "./icons";
+
+/**
+ * Minimal Web Speech API surface (not in the standard TS DOM lib).
+ * Guarded at runtime — jsdom and unsupported browsers fall back to typing.
+ */
+interface SpeechResultAlt {
+  transcript: string;
+}
+interface SpeechResult {
+  0: SpeechResultAlt;
+  isFinal: boolean;
+  length: number;
+}
+interface SpeechEvent {
+  resultIndex: number;
+  results: { length: number; [i: number]: SpeechResult };
+}
+interface SpeechErrorEvent {
+  error: string;
+}
+interface RecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onresult: ((e: SpeechEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: SpeechErrorEvent) => void) | null;
+}
+type RecognitionCtor = new () => RecognitionLike;
+
+/**
+ * Overall parse confidence at or above which entries are saved without a
+ * confirm step (prototype behaviour: mic → save, no "খুঁজে বের করুন" tap).
+ * Below this the review list appears so amounts can be fixed first.
+ */
+const AUTO_SAVE_CONFIDENCE = 0.7;
+
+/**
+ * Silence that ends a dictation: after this long with no new speech the mic
+ * stops by itself and the transcript auto-adds (owner: "too many issues" —
+ * users spoke, waited, nothing happened because nobody re-pressed the mic).
+ */
+export const SILENCE_AUTO_SUBMIT_MS = 2000;
+
+/**
+ * Google-Translate-style dictation: continuous + interim results, so words
+ * appear live while the user speaks. bn-BD rides Chrome's server engine.
+ */
+function getRecognition(): RecognitionLike | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: RecognitionCtor;
+    webkitSpeechRecognition?: RecognitionCtor;
+  };
+  const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  if (!Ctor) return null;
+  try {
+    const rec = new Ctor();
+    rec.lang = "bn-BD";
+    rec.continuous = true;
+    rec.interimResults = true;
+    return rec;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Voice-first add flow mirroring the frozen prototype's overlay: speak or
+ * type a transcript → POST /voice/parse → review the parsed candidates →
+ * POST /expenses/bulk saves them in one flush (ADR-0004 §8 money strings).
+ */
+export type VoiceOverlayMode = "expense" | "debt" | "budget" | "recurring";
+
+/** Mode-aware copy for the overlay head + hint line (prototype VOICE_CTX). */
+const MODE_COPY = {
+  expense: { title: "voiceTitle", hint: "voiceHint" },
+  debt: { title: "voiceDebtTitle", hint: "voiceDebtHint" },
+  budget: { title: "voiceBudgetTitle", hint: "voiceBudgetHint" },
+  recurring: { title: "voiceRecurringTitle", hint: "voiceRecurringHint" },
+} as const satisfies Record<
+  VoiceOverlayMode,
+  {
+    title: "voiceTitle" | "voiceDebtTitle" | "voiceBudgetTitle" | "voiceRecurringTitle";
+    hint: "voiceHint" | "voiceDebtHint" | "voiceBudgetHint" | "voiceRecurringHint";
+  }
+>;
+
+/** Weekday select options for the weekly review card (0=Sunday…6=Saturday). */
+const WEEKDAY_KEYS = [
+  "voiceWd0",
+  "voiceWd1",
+  "voiceWd2",
+  "voiceWd3",
+  "voiceWd4",
+  "voiceWd5",
+  "voiceWd6",
+] as const;
+
+export function VoiceOverlay({
+  open,
+  onClose,
+  mode = "expense",
+  parties = [],
+  initialText,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Context-aware overlay (prototype fabMode): expense or debt ledger. */
+  mode?: VoiceOverlayMode;
+  /** Known party names for the debt-mode datalist autocomplete. */
+  parties?: string[];
+  /**
+   * T23.2 Web Share Target: text shared into the PWA (e.g. "চায়ে ৪০ টাকা").
+   * Applied once on the closed→open transition; absent → no behavior change.
+   */
+  initialText?: string;
+  /**
+   * T29.2 recurring mode: the SCREEN owns the POST /recurring + toast — the
+   * overlay only hands over the reviewed rule (debt-mode contract, ADR-0029:
+   * confirm is ALWAYS explicit, never auto-saved).
+   */
+  onConfirm?: (parsed: ParsedRecurring) => void;
+}) {
+  const lang = useLangStore((s) => s.lang);
+  const parse = useVoiceParse();
+  const { bulkCreate } = useExpenseMutations();
+  const { create: createDebt } = useDebtMutations();
+  const { put: putBudget } = useBudgetMutation();
+
+  const [text, setText] = useState("");
+  const [items, setItems] = useState<ParsedExpense[] | null>(null);
+  // Debt mode: single editable review row (prototype vDebtName/Dir/Amt/Note).
+  const [debtRow, setDebtRow] = useState<ParsedDebt | null>(null);
+  // Budget mode: parsed monthly limit, null until something was understood.
+  const [budgetAmt, setBudgetAmt] = useState<string | null>(null);
+  // Recurring mode (T29.2): parsed cadence + amount, null until understood.
+  const [recRow, setRecRow] = useState<ParsedRecurring | null>(null);
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [listening, setListening] = useState(false);
+  const [savedCount, setSavedCount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  // T24.1 duplicate guard: same-day saved rows fetched for the current parse
+  // (null = not fetched yet) — the review list flags duplicates against them.
+  const [recentRows, setRecentRows] = useState<Expense[] | null>(null);
+  const recRef = useRef<RecognitionLike | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  // Submission guard — set synchronously so Enter key-repeat, double-taps,
+  // or Enter+button races can never fire the parse→bulk pipeline twice
+  // (owner report: typed expense got added two times).
+  const busyRef = useRef(false);
+  // Dictation session refs — survive recognition restarts (onend→start).
+  const baseTextRef = useRef("");
+  const finalRef = useRef("");
+  const wantListenRef = useRef(false);
+  const fatalRef = useRef(false);
+  const restartsRef = useRef(0);
+  // Live mirror of `text` so timer/async closures never read stale state.
+  const textRef = useRef("");
+  const silenceTimerRef = useRef<number | null>(null);
+
+  /*
+   * T23.2 Web Share Target prefill: when the overlay opens with shared text
+   * and the textarea is still empty, prefill it via setTextBoth (textRef
+   * stays in sync) and run the SAME parse flow a manual "যোগ করুন" tap
+   * would. Ref-guarded one-shot per closed→open transition, so StrictMode's
+   * mount double-invoke and plain re-renders can neither re-apply it nor
+   * double-parse. Parse failure leaves the text in the textarea for manual
+   * confirm — nothing is ever saved blind. No initialText → unchanged.
+   *
+   * Latest-ref pattern (as in Modal) keeps the effect on the minimal
+   * [open, initialText] deps although it calls per-render closures.
+   */
+  const prefillDoneRef = useRef(false);
+  // T23.2 CTO fix: set while the current open session came from a share-target
+  // prefill — runFlow must then always park at review (never auto-save).
+  const fromShareRef = useRef(false);
+  const setTextBothRef = useRef(setTextBoth);
+  const runFlowRef = useRef(runFlow);
+  useEffect(() => {
+    setTextBothRef.current = setTextBoth;
+    runFlowRef.current = runFlow;
+  });
+  useEffect(() => {
+    if (!open) {
+      prefillDoneRef.current = false;
+      fromShareRef.current = false;
+      return;
+    }
+    if (prefillDoneRef.current) return;
+    prefillDoneRef.current = true;
+    const shared = (initialText ?? "").trim();
+    if (!shared || textRef.current.trim() !== "") return;
+    fromShareRef.current = true;
+    setTextBothRef.current(shared);
+    void runFlowRef.current();
+  }, [open, initialText]);
+
+  const micSupported = useMemo(() => getRecognition() !== null, []);
+  const pending = parse.isPending || bulkCreate.isPending || putBudget.isPending;
+
+  function setTextBoth(v: string) {
+    textRef.current = v;
+    setText(v);
+  }
+
+  function clearSilenceTimer() {
+    if (silenceTimerRef.current !== null) {
+      window.clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }
+
+  /** 2s of silence ends the dictation: mic stops → auto-add fires. */
+  function armSilenceSubmit() {
+    clearSilenceTimer();
+    silenceTimerRef.current = window.setTimeout(() => {
+      silenceTimerRef.current = null;
+      if (wantListenRef.current && textRef.current.trim()) {
+        stopListening();
+      }
+    }, SILENCE_AUTO_SUBMIT_MS);
+  }
+
+  function reset() {
+    setTextBoth("");
+    setItems(null);
+    setDebtRow(null);
+    setBudgetAmt(null);
+    setRecRow(null);
+    setConfidence(null);
+    setSavedCount(null);
+    setError(null);
+    setNote(null);
+    setRecentRows(null);
+  }
+
+  function handleClose() {
+    if (listening) {
+      // ✕ while dictating = stop + submit — the overlay exists to add, so
+      // closing must never silently discard what was said.
+      stopListening();
+      return;
+    }
+    wantListenRef.current = false;
+    clearSilenceTimer();
+    recRef.current?.stop();
+    reset();
+    onClose();
+  }
+
+  /** Compose textarea = base text + committed finals + live interim. */
+  function renderTranscript(interim: string) {
+    const parts = [baseTextRef.current, finalRef.current.trim(), interim.trim()];
+    // bn-BD engines stutter on flaky mobile networks — hypotheses arrive
+    // with the head word repeated ("ডিম ডিম ডিম ডিম ১৫০", owner screenshot
+    // 11:31). Collapse repeated runs LIVE so the user sees and submits
+    // what they meant; the API-side collapse is the second net.
+    setTextBoth(collapseRepeatedRuns(parts.filter(Boolean).join(" ")));
+  }
+
+  function startListening() {
+    const rec = getRecognition();
+    if (!rec) return;
+    recRef.current = rec;
+    // Re-speak after a failed parse REPLACES, not appends: "কিছু বোঝা যায়নি"
+    // leaves a dead partial in the textarea (the 2s silence auto-stopped the
+    // mic mid-sentence), and the natural retry is saying the whole sentence
+    // again. Appending doubled the transcript — "রিক্সা ভাড়া রিক্সা ভাড়া
+    // ২০ টাকা" (owner screenshot 2026-09-07). Typed text (items === null)
+    // and review-list text still append as before.
+    if (items !== null && items.length === 0) {
+      setTextBoth("");
+      setItems(null);
+      baseTextRef.current = "";
+    } else {
+      baseTextRef.current = text.trim();
+    }
+    finalRef.current = "";
+    wantListenRef.current = true;
+    fatalRef.current = false;
+    restartsRef.current = 0;
+    setListening(true);
+    setError(null);
+    setNote(null);
+    rec.onresult = (e: SpeechEvent) => {
+      // Rebuild finals from the full results array every event — idempotent,
+      // so engines that re-deliver a final can never duplicate the transcript
+      // (owner report: words appearing twice).
+      let interim = "";
+      const finals: string[] = [];
+      for (let i = 0; i < e.results.length; i++) {
+        const r = e.results[i];
+        const said = r?.[0]?.transcript ?? "";
+        if (!said) continue;
+        if (r.isFinal) finals.push(said);
+        else interim += said;
+      }
+      finalRef.current = finals.join(" ");
+      renderTranscript(interim);
+      armSilenceSubmit();
+    };
+    rec.onerror = (e: SpeechErrorEvent) => {
+      switch (e.error) {
+        case "aborted":
+          break; // stop() was pressed — silence is correct
+        case "no-speech":
+          setNote(w(lang, "voiceNoSpeech"));
+          break; // not fatal — onend will restart the mic
+        case "not-allowed":
+        case "service-not-allowed":
+          fatalRef.current = true;
+          setError(w(lang, "voiceMicPerm"));
+          break;
+        case "audio-capture":
+          fatalRef.current = true;
+          setError(w(lang, "voiceMicMissing"));
+          break;
+        case "network":
+          fatalRef.current = true;
+          setError(w(lang, "voiceNetErr"));
+          break;
+        default:
+          fatalRef.current = true;
+          setError(w(lang, "errFallback"));
+      }
+    };
+    rec.onend = () => {
+      setListening(false);
+      clearSilenceTimer();
+      // Commit this session's finals into the base so the restart below can
+      // neither lose them (new session = empty results) nor duplicate them.
+      baseTextRef.current = [baseTextRef.current, finalRef.current.trim()]
+        .filter(Boolean)
+        .join(" ");
+      finalRef.current = "";
+      // Google-Translate feel: keep the mic alive across pauses until the
+      // user presses stop or a fatal error occurred.
+      if (wantListenRef.current && !fatalRef.current && restartsRef.current < 30) {
+        restartsRef.current += 1;
+        try {
+          rec.start();
+          setListening(true);
+        } catch {
+          // start() throws if the engine is still winding down — onend fires
+          // again and we retry on the next tick.
+        }
+      }
+    };
+    try {
+      rec.start();
+      armSilenceSubmit();
+    } catch {
+      setListening(false);
+      setError(w(lang, "errFallback"));
+    }
+  }
+
+  function stopListening() {
+    wantListenRef.current = false;
+    clearSilenceTimer();
+    recRef.current?.stop();
+    setListening(false);
+    // Auto-add: stopping the mic IS the submit — no separate "find" tap.
+    void runFlow();
+  }
+
+  /**
+   * Parse → auto-add pipeline (prototype parity: no extra search step).
+   * High confidence → bulk-save immediately and close; low confidence →
+   * review list first; nothing recognized → keep the transcript editable.
+   */
+  async function runFlow() {
+    if (busyRef.current) return;
+    setError(null);
+    setSavedCount(null);
+    // textRef (not the state closure) so the silence-timer path always sees
+    // the latest transcript.
+    const transcript = (textRef.current ?? text).trim();
+    if (!transcript || pending) return;
+    busyRef.current = true;
+    try {
+      // Recurring mode (T29.2) is on-device too (ADR-0029): regex-only
+      // cadence/amount/category parse, then the ALWAYS-editable review card.
+      // No /voice/parse call, no tokens, works offline.
+      if (mode === "recurring") {
+        const parsed = parseRecurringText(transcript);
+        if (!parsed) {
+          setItems([]);
+          return;
+        }
+        setItems(null); // clear any earlier "nothing found" hint
+        setRecRow(parsed);
+        return;
+      }
+      // Debt mode parses on-device (zero-cost regex) and always shows the
+      // review card first — wrong money direction is worse than one extra tap.
+      if (mode === "debt") {
+        const parsed = parseDebtText(transcript);
+        if (!parsed) {
+          setItems([]);
+          return;
+        }
+        setDebtRow(parsed);
+        return;
+      }
+      // Budget mode is on-device too (prototype VOICE_CTX.budget): the first
+      // number in the sentence is the monthly limit. No number → nothing to
+      // review, and the transcript stays editable for a retry.
+      if (mode === "budget") {
+        const amt = parseBudgetAmount(transcript);
+        if (amt === null) {
+          setItems([]);
+          return;
+        }
+        setBudgetAmt(amt);
+        return;
+      }
+      let res;
+      try {
+        res = await parse.mutateAsync(transcript);
+      } catch {
+        // fetch-level failure (offline, DNS, timeout) — TanStack rethrows.
+        setError(w(lang, "voiceNetErr"));
+        return;
+      }
+      if (!res.ok) {
+        setError(res.detail || w(lang, "errFallback"));
+        return;
+      }
+      setConfidence(res.data.confidence);
+      if (res.data.items.length === 0) {
+        setItems([]); // "কিছু বোঝা যায়নি" — transcript stays for editing
+        return;
+      }
+      // T24.1 duplicate-add guard (WCAG 2.2 SC 3.3.4 — "checked"): compare
+      // the parsed candidates against the same days' saved rows before any
+      // save. A confident parse that repeats an expense from minutes ago
+      // parks at the review list instead of auto-saving — the accidental
+      // double-booking now costs one explicit confirm, nothing saved blind.
+      // T23.2 CTO fix also still applies: share-target intake NEVER
+      // auto-saves, however confident the parse (the shared text may be
+      // accidental), so it always parks at review like the low-confidence
+      // and duplicate-suspect paths below.
+      const recent = await fetchExpensesForDays(
+        res.data.items.map((it) => it.iso ?? todayIso()),
+        lang,
+      );
+      setRecentRows(recent);
+      if (
+        !fromShareRef.current &&
+        res.data.confidence >= AUTO_SAVE_CONFIDENCE &&
+        !itemsHaveDuplicates(res.data.items, recent)
+      ) {
+        const saved = await saveItems(res.data.items);
+        if (saved) {
+          // Prototype vpDone: brief ✓ then the overlay closes itself.
+          window.setTimeout(() => handleClose(), 1600);
+        }
+        return;
+      }
+      setItems(res.data.items); // dup suspicion or low confidence → review first
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => (prev ? prev.filter((_, i) => i !== index) : prev));
+  }
+
+  function editItemAmt(index: number, raw: string) {
+    setItems((prev) =>
+      prev
+        ? prev.map((item, i) => (i === index ? { ...item, amt: raw } : item))
+        : prev,
+    );
+  }
+
+  /** Sanitize parsed candidates → bulk-create → toast + reset. */
+  async function saveItems(list: ParsedExpense[]): Promise<boolean> {
+    setError(null);
+    // The parser returns decimal-string amounts (ADR-0004 §1); apply a light
+    // numeric sanity pass, normalize to 2 places, default pay/iso.
+    const clean = list
+      .filter((it) => /^\d{1,10}(\.\d{1,2})?$/.test(it.amt.trim()))
+      .map((it) => ({
+        amt: Number(it.amt.trim()).toFixed(2),
+        cat: it.cat,
+        grp: it.grp,
+        pay: it.pay ?? ("cash" as const),
+        iso: it.iso ?? todayIso(),
+        desc: it.desc,
+      }));
+    if (clean.length === 0) {
+      setError(w(lang, "errAmt"));
+      return false;
+    }
+    let res;
+    try {
+      res = await bulkCreate.mutateAsync(clean);
+    } catch {
+      setError(w(lang, "errFallback"));
+      return false;
+    }
+    if (res.ok) {
+      const count = res.data.length;
+      setSavedCount(count);
+      setItems(null);
+      setTextBoth("");
+      setConfidence(null);
+      setRecentRows(null); // T24.1: saved — the guard's rows are stale now
+      // Prototype parity: announce the batch save (e.g. "✓ ২টি সংরক্ষিত হয়েছে").
+      toast(
+        lang === "bn"
+          ? `✓ ${toBnDigits(String(count))} ${w(lang, "savedCount")}`
+          : `✓ ${count} ${w(lang, "savedCount")}`,
+      );
+      return true;
+    }
+    setError(res.detail || w(lang, "errFallback"));
+    return false;
+  }
+
+  async function handleSaveAll() {
+    if (busyRef.current || !items || items.length === 0) return;
+    busyRef.current = true;
+    try {
+      await saveItems(items);
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
+  /** Debt review card → POST /debts → toast + auto-close (prototype vpSave). */
+  async function saveDebtRow() {
+    if (busyRef.current || !debtRow) return;
+    if (!debtRow.party.trim() || !(Number(debtRow.amt) > 0)) {
+      setError(w(lang, "voiceDebtNeed"));
+      return;
+    }
+    busyRef.current = true;
+    try {
+      let res;
+      try {
+        res = await createDebt.mutateAsync({
+          party: debtRow.party.trim(),
+          dir: debtRow.dir,
+          amt: Number(debtRow.amt).toFixed(2),
+          note: debtRow.note.trim() || undefined,
+          iso: todayIso(),
+        });
+      } catch {
+        setError(w(lang, "voiceNetErr"));
+        return;
+      }
+      if (!res.ok) {
+        setError(res.detail || w(lang, "errFallback"));
+        return;
+      }
+      setDebtRow(null);
+      setSavedCount(1);
+      setTextBoth("");
+      toast(w(lang, "voiceDebtSaved"));
+      window.setTimeout(() => handleClose(), 1600);
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
+  /**
+   * Budget review card → PUT /budgets {total} for the current month →
+   * toast + auto-close (prototype VOICE_CTX.budget parity).
+   */
+  async function saveBudgetRow() {
+    if (busyRef.current || budgetAmt === null) return;
+    const normalized = normalizeAmount(budgetAmt);
+    if (!normalized || moneyToNumber(normalized) <= 0) {
+      setError(w(lang, "errAmt"));
+      return;
+    }
+    busyRef.current = true;
+    try {
+      let res;
+      try {
+        // PUT /budgets upserts the current month server-side (ym defaults to
+        // todayIso's month); the mutation invalidates the budgets cache.
+        res = await putBudget.mutateAsync({ total: normalized });
+      } catch {
+        setError(w(lang, "voiceNetErr"));
+        return;
+      }
+      if (!res.ok) {
+        setError(res.detail || w(lang, "errFallback"));
+        return;
+      }
+      setBudgetAmt(null);
+      setSavedCount(1);
+      setTextBoth("");
+      toast(w(lang, "voiceBudgetSaved"));
+      window.setTimeout(() => handleClose(), 1600);
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
+  /**
+   * Recurring review card → hand the reviewed rule to the SCREEN, which owns
+   * the POST /recurring and its toast (debt-mode contract: an on-device
+   * parse never writes from inside the overlay; ADR-0029 never-auto-save).
+   */
+  function confirmRecurringRow() {
+    if (busyRef.current || !recRow) return;
+    if (!(Number(recRow.amt) > 0)) {
+      setError(w(lang, "errAmt"));
+      return;
+    }
+    busyRef.current = true;
+    try {
+      onConfirm?.(recRow);
+      handleClose(); // one tap = done; the screen toasts the outcome
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
+  /*
+   * T24.1 — which review rows look like duplicates (of each other inside the
+   * batch, or of rows saved within the recency window)? Recomputed per render
+   * so fixing an amount clears that row's flag live; only when at least one
+   * row is flagged does the save need the explicit "তবুও সংরক্ষণ করুন".
+   */
+  const batchDupKeys = items !== null ? findBatchDuplicateKeys(items) : new Set<string>();
+  const isDupItem = (item: ParsedExpense) =>
+    batchDupKeys.has(dupKey(item)) ||
+    findDuplicateExpenses(item, recentRows ?? []).length > 0;
+  const anyDup = items !== null && items.length > 0 && items.some(isDupItem);
+
+  return (
+    <Modal open={open} onClose={handleClose} label={w(lang, MODE_COPY[mode].title)}>
+      <div className="flex flex-col gap-4 p-5" aria-busy={pending}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold">{w(lang, MODE_COPY[mode].title)}</h2>
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label={w(lang, "cancel")}
+            className="max-md:flex max-md:h-11 max-md:w-11 max-md:items-center max-md:justify-center rounded-control px-2 py-1 text-sm font-semibold text-muted hover:bg-surface-2"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="text-[13px] text-muted">{w(lang, MODE_COPY[mode].hint)}</p>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-control border border-danger bg-danger/5 px-3.5 py-2.5 text-sm font-medium text-danger"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-col items-center gap-3 py-1">
+          {micSupported ? (
+            <button
+              type="button"
+              onClick={listening ? stopListening : startListening}
+              aria-pressed={listening}
+              aria-label={listening ? w(lang, "listening") : w(lang, "mic")}
+              className={`flex h-16 w-16 items-center justify-center rounded-full text-accent-ink shadow-card transition-transform ${
+                listening ? "animate-pulse bg-danger" : "bg-emerald hover:scale-105"
+              }`}
+            >
+              <IconMic className="h-7 w-7" />
+            </button>
+          ) : null}
+          {listening && (
+            <p className="text-sm font-semibold text-emerald" role="status">
+              {w(lang, "listening")}…
+            </p>
+          )}
+          {note && !listening && !error && (
+            <p className="text-xs text-muted" role="status">
+              {note}
+            </p>
+          )}
+          {!micSupported && (
+            <p className="text-xs text-muted">{w(lang, "voiceUnsupported")}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="sr-only" htmlFor="voice-text">
+            {w(lang, MODE_COPY[mode].hint)}
+          </label>
+          <textarea
+            id="voice-text"
+            ref={textAreaRef}
+            rows={3}
+            value={text}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTextBoth(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter submits (auto-add); Shift+Enter makes a new line.
+              // Held-down Enter auto-repeats — e.repeat must not resubmit.
+              if (e.repeat) return;
+              if (e.key === "Enter" && !e.shiftKey && !listening) {
+                e.preventDefault();
+                void runFlow();
+              }
+            }}
+            placeholder={w(lang, "voicePh")}
+            className="w-full resize-none rounded-control border border-line bg-ivory px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-emerald focus:outline-none"
+          />
+          {listening && (
+            <p className="text-[11px] text-muted">
+              {lang === "bn"
+                ? "বলতে থাকুন — ২ সেকেন্ড থামলেই অটো-যোগ হবে। চাইলে মাইক বন্ধ করেও যোগ করা যায়।"
+                : "Keep speaking — pause 2s to auto-add, or press the mic to finish."}
+            </p>
+          )}
+        </div>
+
+        {items === null || items.length === 0 ? (!listening && !debtRow && budgetAmt === null && recRow === null && text.trim() !== "" && (
+          <button
+            type="button"
+            onClick={() => void runFlow()}
+            disabled={pending}
+            className="h-11 rounded-control bg-emerald font-bold text-accent-ink transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {parse.isPending ? w(lang, "voiceParsing") : w(lang, "voiceAddBtn")}
+          </button>
+        )) : null}
+
+        {mode === "debt" && debtRow && (
+          <div className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-3.5">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold">{w(lang, "dNew")}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                {w(lang, "dParty")}
+                <input
+                  type="text"
+                  value={debtRow.party}
+                  maxLength={120}
+                  list="voiceDebtPartyList"
+                  onChange={(e) => setDebtRow({ ...debtRow, party: e.target.value })}
+                  className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-normal text-ink focus:border-emerald focus:outline-none"
+                />
+                <datalist id="voiceDebtPartyList">
+                  {parties.map((p) => (
+                    <option key={p} value={p} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                {w(lang, "dType")}
+                <select
+                  value={debtRow.dir}
+                  onChange={(e) =>
+                    setDebtRow({ ...debtRow, dir: e.target.value as "lend" | "borrow" })
+                  }
+                  className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-normal text-ink focus:border-emerald focus:outline-none"
+                >
+                  <option value="lend">{w(lang, "dLend")}</option>
+                  <option value="borrow">{w(lang, "dBorrow")}</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                {w(lang, "amtLabel")}
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={debtRow.amt}
+                  onChange={(e) => setDebtRow({ ...debtRow, amt: e.target.value })}
+                  className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-bold tabular-nums text-ink focus:border-emerald focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                {w(lang, "dNote")}
+                <input
+                  type="text"
+                  value={debtRow.note}
+                  maxLength={200}
+                  placeholder={w(lang, "dOpt")}
+                  onChange={(e) => setDebtRow({ ...debtRow, note: e.target.value })}
+                  className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-normal text-ink placeholder:text-muted/70 focus:border-emerald focus:outline-none"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={() => void saveDebtRow()}
+              disabled={createDebt.isPending}
+              className="h-11 rounded-control bg-emerald font-bold text-accent-ink transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {createDebt.isPending ? w(lang, "saving") : w(lang, "save")}
+            </button>
+          </div>
+        )}
+
+        {mode === "budget" && budgetAmt !== null && (
+          <div className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-3.5">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold">{w(lang, "budMonthly")}</span>
+              <span className="text-muted">{monthLabel(ymOfIso(todayIso()), lang)}</span>
+            </div>
+            <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+              {w(lang, "amtLabel")}
+              <input
+                id="voiceBudgetAmt"
+                type="text"
+                inputMode="decimal"
+                value={budgetAmt}
+                onChange={(e) => setBudgetAmt(e.target.value)}
+                className="rounded-control border border-line bg-ivory px-2.5 py-2 text-lg font-bold tabular-nums text-ink focus:border-emerald focus:outline-none"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void saveBudgetRow()}
+              disabled={putBudget.isPending}
+              className="h-11 rounded-control bg-emerald font-bold text-accent-ink transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {putBudget.isPending ? w(lang, "saving") : w(lang, "save")}
+            </button>
+          </div>
+        )}
+
+        {mode === "recurring" && recRow && (
+          <div className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-3.5">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold">{w(lang, "rAddTitle")}</span>
+            </div>
+            <Segmented<ParsedRecurring["freq"]>
+              label={w(lang, "rFreq")}
+              value={recRow.freq}
+              onChange={(f) =>
+                setRecRow((r) =>
+                  r
+                    ? {
+                        ...r,
+                        freq: f,
+                        // A cadence switch drops the other cadence's field —
+                        // monthDay only exists for monthly, weekDay for weekly.
+                        monthDay: f === "monthly" ? r.monthDay : null,
+                        weekDay: f === "weekly" ? r.weekDay : null,
+                      }
+                    : r,
+                )
+              }
+              options={[
+                { value: "daily", label: w(lang, "voiceFreqDaily") },
+                { value: "weekly", label: w(lang, "voiceFreqWeekly") },
+                { value: "monthly", label: w(lang, "voiceFreqMonthly") },
+                { value: "yearly", label: w(lang, "voiceFreqYearly") },
+              ]}
+            />
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                {w(lang, "amtLabel")}
+                <input
+                  id="voiceRecAmt"
+                  type="text"
+                  inputMode="decimal"
+                  value={recRow.amt}
+                  onChange={(e) => setRecRow({ ...recRow, amt: e.target.value })}
+                  className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-bold tabular-nums text-ink focus:border-emerald focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                {w(lang, "catLabel")}
+                <input
+                  id="voiceRecCat"
+                  type="text"
+                  value={recRow.cat ?? ""}
+                  maxLength={120}
+                  placeholder={w(lang, "catPh")}
+                  onChange={(e) => setRecRow({ ...recRow, cat: e.target.value })}
+                  className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-normal text-ink placeholder:text-muted/70 focus:border-emerald focus:outline-none"
+                />
+              </label>
+              {recRow.freq === "monthly" && (
+                <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                  {w(lang, "voiceMonthDay")}
+                  <input
+                    id="voiceRecMonthDay"
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={recRow.monthDay ?? ""}
+                    onChange={(e) =>
+                      setRecRow({
+                        ...recRow,
+                        monthDay: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-bold tabular-nums text-ink focus:border-emerald focus:outline-none"
+                  />
+                </label>
+              )}
+              {recRow.freq === "weekly" && (
+                <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted">
+                  {w(lang, "voiceWeekDay")}
+                  <select
+                    id="voiceRecWeekDay"
+                    value={recRow.weekDay ?? ""}
+                    onChange={(e) =>
+                      setRecRow({
+                        ...recRow,
+                        weekDay: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className="max-md:min-h-11 rounded-control border border-line bg-ivory px-2.5 py-2 text-sm font-normal text-ink focus:border-emerald focus:outline-none"
+                  >
+                    <option value="">{w(lang, "dOpt")}</option>
+                    {WEEKDAY_KEYS.map((key, idx) => (
+                      <option key={key} value={idx}>
+                        {w(lang, key)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={confirmRecurringRow}
+              className="h-11 rounded-control bg-emerald font-bold text-accent-ink transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {w(lang, "voiceRecurringSave")}
+            </button>
+          </div>
+        )}
+
+        {items !== null && items.length === 0 && (
+          <p className="text-sm text-muted" role="status">
+            {w(lang, "nothingFound")}
+          </p>
+        )}
+
+        {items !== null && items.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-bold">{w(lang, "parsedItems")}</span>
+              {confidence !== null && (
+                <span className="text-muted">
+                  {w(lang, "confidence")}:{" "}
+                  {lang === "bn"
+                    ? `${toBnDigits(String(Math.round(confidence * 100)))}%`
+                    : `${Math.round(confidence * 100)}%`}
+                </span>
+              )}
+            </div>
+            {(confidence ?? 1) < AUTO_SAVE_CONFIDENCE && (
+              <p className="text-xs font-semibold text-warning">{w(lang, "voiceReviewHint")}</p>
+            )}
+            {anyDup && (
+              <div
+                role="alert"
+                className="rounded-control border border-warning bg-warning/5 px-3.5 py-2.5 text-sm text-ink"
+              >
+                <p className="font-bold text-warning">{w(lang, "dupTitle")}</p>
+                <p>{w(lang, "dupVoiceWarn")}</p>
+              </div>
+            )}
+            <ul className="flex flex-col divide-y divide-line rounded-card border border-line">
+              {items.map((item, i) => (
+                <li key={`${item.cat}-${i}`} className="flex items-center gap-2 px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">
+                      {item.cat}{" "}
+                      {isDupItem(item) && (
+                        <span className="whitespace-nowrap rounded-full border border-warning px-1.5 text-[11px] font-bold text-warning">
+                          {w(lang, "dupTag")}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {groupName(item.grp, lang)} · {payName(item.pay ?? "cash", lang)} ·{" "}
+                      {item.iso ?? w(lang, "today")}
+                    </p>
+                  </div>
+                  <input
+                    aria-label={`${item.cat} — ${w(lang, "amtLabel")}`}
+                    type="text"
+                    inputMode="decimal"
+                    value={item.amt}
+                    onChange={(e) => editItemAmt(i, e.target.value)}
+                    className="w-20 rounded-control border border-line bg-ivory px-2 py-1.5 text-right text-sm font-bold tabular-nums text-ink focus:border-emerald focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeItem(i)}
+                    aria-label={`${item.cat} — ${w(lang, "remove")}`}
+                    className="max-md:flex max-md:h-11 max-md:w-11 max-md:items-center max-md:justify-center rounded-control px-2 py-1 text-sm text-muted hover:bg-surface-2 hover:text-danger"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted">
+              {w(lang, "totalSpend")}:{" "}
+              {fmtTaka(
+                items.reduce((sum, it) => sum + (Number(it.amt) || 0), 0),
+                lang,
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={pending}
+              className="h-11 rounded-control bg-emerald font-bold text-accent-ink transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {bulkCreate.isPending
+                ? w(lang, "saving")
+                : `${anyDup ? w(lang, "dupSaveAnyway") : w(lang, "saveAll")} (${lang === "bn" ? toBnDigits(String(items.length)) : items.length})`}
+            </button>
+          </div>
+        )}
+
+        {savedCount !== null && items === null && (
+          <p className="text-center text-sm font-bold text-emerald" role="status">
+            {lang === "bn"
+              ? `✓ ${toBnDigits(String(savedCount))} ${w(lang, "savedCount")}`
+              : `✓ ${savedCount} ${w(lang, "savedCount")}`}
+          </p>
+        )}
+      </div>
+    </Modal>
+  );
+}

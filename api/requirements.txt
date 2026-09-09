@@ -1,0 +1,15 @@
+# Runtime deps for the Poi Poi Hisab API on Vercel (@vercel/python).
+# Mirrors apps/api/pyproject.toml minus dev/server-only extras:
+# no uvicorn (Vercel provides the ASGI bridge), no alembic (migrations run
+# from a dev machine), no aiosqlite (prod uses Postgres), no redis
+# (sessions live in Postgres via app.core.kv.PostgresKV).
+fastapi
+sqlalchemy[asyncio]
+asyncpg
+pydantic
+pydantic-settings
+greenlet
+argon2-cffi>=25.1.0
+pyjwt>=2.13.0
+google-auth[requests]
+requests

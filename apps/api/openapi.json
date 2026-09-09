@@ -1,0 +1,4352 @@
+{
+  "components": {
+    "schemas": {
+      "AuthOut": {
+        "description": "Login/register/refresh response: user + token pair.",
+        "properties": {
+          "accessToken": {
+            "title": "Accesstoken",
+            "type": "string"
+          },
+          "refreshToken": {
+            "title": "Refreshtoken",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          }
+        },
+        "required": [
+          "user",
+          "accessToken",
+          "refreshToken"
+        ],
+        "title": "AuthOut",
+        "type": "object"
+      },
+      "BackupBudgetRow": {
+        "description": "One budgets row (at most one per user — the PK is ``user_id``).",
+        "properties": {
+          "cats": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Cats",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "total",
+          "cats",
+          "updated_at"
+        ],
+        "title": "BackupBudgetRow",
+        "type": "object"
+      },
+      "BackupCounts": {
+        "description": "Row counts, mirroring the collections of the same envelope.",
+        "properties": {
+          "budgets": {
+            "title": "Budgets",
+            "type": "integer"
+          },
+          "debts": {
+            "title": "Debts",
+            "type": "integer"
+          },
+          "expenses": {
+            "title": "Expenses",
+            "type": "integer"
+          },
+          "recurring": {
+            "default": 0,
+            "title": "Recurring",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expenses",
+          "debts",
+          "budgets"
+        ],
+        "title": "BackupCounts",
+        "type": "object"
+      },
+      "BackupEnvelope": {
+        "description": "The full-fidelity backup document (both directions, ADR-0012/0028).\n\n``expenses``/``debts`` reuse :class:`ExpenseOut`/:class:`DebtOut`, so the\nbackup wire shape IS the CRUD wire shape (every column, money as exact\ndecimal strings) — a downloaded file can be fed straight back to\n``POST /import/restore``. ``recurring`` (v2, ADR-0028) carries the\ncaller's rules; it defaults to empty so v1 consumers ignore it safely.",
+        "properties": {
+          "budgets": {
+            "items": {
+              "$ref": "#/components/schemas/BackupBudgetRow"
+            },
+            "title": "Budgets",
+            "type": "array"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/BackupCounts"
+          },
+          "debts": {
+            "items": {
+              "$ref": "#/components/schemas/DebtOut"
+            },
+            "title": "Debts",
+            "type": "array"
+          },
+          "expenses": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Expenses",
+            "type": "array"
+          },
+          "exported_at": {
+            "title": "Exported At",
+            "type": "string"
+          },
+          "recurring": {
+            "items": {
+              "$ref": "#/components/schemas/BackupRecurringRow"
+            },
+            "title": "Recurring",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 2,
+            "default": 2,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exported_at",
+          "counts",
+          "expenses",
+          "debts",
+          "budgets"
+        ],
+        "title": "BackupEnvelope",
+        "type": "object"
+      },
+      "BackupRecurringRow": {
+        "description": "One recurring-rule row (ADR-0028) — every column EXCEPT ``id``/``user_id``.\n\nRules have no history to preserve beyond their content, so unlike\nexpenses/debts the export omits identity entirely: restore always mints\nfresh PKs under the caller. Field validators/amount types are the shared\n:mod:`app.schemas.recurring` ones (do not drift — ADR-0004).",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amt": {
+            "title": "Amt",
+            "type": "string"
+          },
+          "cat": {
+            "title": "Cat",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "freq": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly",
+              "yearly"
+            ],
+            "title": "Freq",
+            "type": "string"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "next_run": {
+            "format": "date",
+            "title": "Next Run",
+            "type": "string"
+          },
+          "pay": {
+            "enum": [
+              "cash",
+              "bkash",
+              "nagad",
+              "rocket",
+              "card",
+              "bank"
+            ],
+            "title": "Pay",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "cat",
+          "grp",
+          "amt",
+          "pay",
+          "freq",
+          "start_date",
+          "next_run",
+          "active"
+        ],
+        "title": "BackupRecurringRow",
+        "type": "object"
+      },
+      "BudgetCatUsage": {
+        "description": "Per-category budget vs actual spend for one month.",
+        "properties": {
+          "budget": {
+            "title": "Budget",
+            "type": "string"
+          },
+          "spent": {
+            "title": "Spent",
+            "type": "string"
+          },
+          "usage_pct": {
+            "title": "Usage Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "budget",
+          "spent",
+          "usage_pct"
+        ],
+        "title": "BudgetCatUsage",
+        "type": "object"
+      },
+      "BudgetIn": {
+        "description": "PUT /budgets body — both fields optional (partial upsert).",
+        "properties": {
+          "cats": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "examples": [
+                    "8000.00"
+                  ],
+                  "pattern": "^\\d{1,10}\\.\\d{2}$",
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "maxLength": 80,
+                  "minLength": 1
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cats"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "examples": [
+                  "890.00"
+                ],
+                "pattern": "^\\d{1,10}\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "title": "BudgetIn",
+        "type": "object"
+      },
+      "BudgetOut": {
+        "description": "GET /budgets body: stored budget merged with that month's spending.",
+        "properties": {
+          "by_cat": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BudgetCatUsage"
+            },
+            "title": "By Cat",
+            "type": "object"
+          },
+          "cats": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Cats",
+            "type": "object"
+          },
+          "spent": {
+            "title": "Spent",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "usage_pct": {
+            "title": "Usage Pct",
+            "type": "number"
+          },
+          "ym": {
+            "title": "Ym",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ym",
+          "total",
+          "cats",
+          "spent",
+          "usage_pct",
+          "by_cat"
+        ],
+        "title": "BudgetOut",
+        "type": "object"
+      },
+      "BulkExpensesIn": {
+        "description": "POST /expenses/bulk body (voice multi-item inserts).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "BulkExpensesIn",
+        "type": "object"
+      },
+      "BulkExpensesOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "BulkExpensesOut",
+        "type": "object"
+      },
+      "DebtIn": {
+        "description": "POST /debts body. ``iso`` defaults to today (router fills it).",
+        "properties": {
+          "amt": {
+            "examples": [
+              "890.00"
+            ],
+            "pattern": "^\\d{1,10}\\.\\d{2}$",
+            "title": "Amt",
+            "type": "string"
+          },
+          "dir": {
+            "enum": [
+              "lend",
+              "borrow"
+            ],
+            "title": "Dir",
+            "type": "string"
+          },
+          "iso": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iso"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "party": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Party",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party",
+          "dir",
+          "amt"
+        ],
+        "title": "DebtIn",
+        "type": "object"
+      },
+      "DebtListOut": {
+        "description": "Envelope for GET /debts (ADR-0004 §8).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DebtOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "DebtListOut",
+        "type": "object"
+      },
+      "DebtOut": {
+        "description": "Public debt row; keys mirror the DB columns exactly.",
+        "properties": {
+          "amt": {
+            "title": "Amt",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "dir": {
+            "enum": [
+              "lend",
+              "borrow"
+            ],
+            "title": "Dir",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "iso": {
+            "format": "date",
+            "title": "Iso",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "settled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settled At"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "party",
+          "dir",
+          "amt",
+          "iso",
+          "created_at"
+        ],
+        "title": "DebtOut",
+        "type": "object"
+      },
+      "DebtPayIn": {
+        "description": "POST /debts/{id}/pay body — the amount being paid back.",
+        "properties": {
+          "amt": {
+            "examples": [
+              "890.00"
+            ],
+            "pattern": "^\\d{1,10}\\.\\d{2}$",
+            "title": "Amt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amt"
+        ],
+        "title": "DebtPayIn",
+        "type": "object"
+      },
+      "DebtPayOut": {
+        "description": "Pay close-out result: FULL settles the debt, PARTIAL reduces it.",
+        "properties": {
+          "debt": {
+            "$ref": "#/components/schemas/DebtOut"
+          },
+          "status": {
+            "enum": [
+              "FULL",
+              "PARTIAL"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "debt"
+        ],
+        "title": "DebtPayOut",
+        "type": "object"
+      },
+      "DebtUpdate": {
+        "description": "PATCH /debts/{id} body — every field optional (partial update).",
+        "properties": {
+          "amt": {
+            "anyOf": [
+              {
+                "examples": [
+                  "890.00"
+                ],
+                "pattern": "^\\d{1,10}\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amt"
+          },
+          "dir": {
+            "anyOf": [
+              {
+                "enum": [
+                  "lend",
+                  "borrow"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dir"
+          },
+          "iso": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iso"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "party": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party"
+          }
+        },
+        "title": "DebtUpdate",
+        "type": "object"
+      },
+      "ExpenseIn": {
+        "description": "POST /expenses and POST /expenses/bulk item body.",
+        "properties": {
+          "amt": {
+            "examples": [
+              "890.00"
+            ],
+            "pattern": "^\\d{1,10}\\.\\d{2}$",
+            "title": "Amt",
+            "type": "string"
+          },
+          "cat": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Cat",
+            "type": "string"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "iso": {
+            "format": "date",
+            "title": "Iso",
+            "type": "string"
+          },
+          "pay": {
+            "default": "cash",
+            "enum": [
+              "cash",
+              "bkash",
+              "nagad",
+              "rocket",
+              "card",
+              "bank"
+            ],
+            "title": "Pay",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cat",
+          "grp",
+          "amt",
+          "iso"
+        ],
+        "title": "ExpenseIn",
+        "type": "object"
+      },
+      "ExpenseListOut": {
+        "description": "Envelope for every list endpoint (ADR-0004 §8).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ExpenseListOut",
+        "type": "object"
+      },
+      "ExpenseOut": {
+        "description": "Public expense row; keys mirror the DB columns exactly.",
+        "properties": {
+          "amt": {
+            "title": "Amt",
+            "type": "string"
+          },
+          "cat": {
+            "title": "Cat",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "iso": {
+            "format": "date",
+            "title": "Iso",
+            "type": "string"
+          },
+          "pay": {
+            "enum": [
+              "cash",
+              "bkash",
+              "nagad",
+              "rocket",
+              "card",
+              "bank"
+            ],
+            "title": "Pay",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "cat",
+          "grp",
+          "amt",
+          "pay",
+          "iso",
+          "created_at"
+        ],
+        "title": "ExpenseOut",
+        "type": "object"
+      },
+      "ExpenseUpdate": {
+        "description": "PATCH /expenses/{id} body — every field optional (partial update).",
+        "properties": {
+          "amt": {
+            "anyOf": [
+              {
+                "examples": [
+                  "890.00"
+                ],
+                "pattern": "^\\d{1,10}\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amt"
+          },
+          "cat": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cat"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "grp": {
+            "anyOf": [
+              {
+                "enum": [
+                  "food",
+                  "housing",
+                  "utility",
+                  "transport",
+                  "health",
+                  "education",
+                  "personal",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grp"
+          },
+          "iso": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iso"
+          },
+          "pay": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cash",
+                  "bkash",
+                  "nagad",
+                  "rocket",
+                  "card",
+                  "bank"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pay"
+          }
+        },
+        "title": "ExpenseUpdate",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Healthz": {
+        "properties": {
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "env"
+        ],
+        "title": "Healthz",
+        "type": "object"
+      },
+      "KhataListOut": {
+        "description": "Envelope for GET /expenses/categories (ADR-0004 §8; cursor always null).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KhataOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "KhataListOut",
+        "type": "object"
+      },
+      "KhataOut": {
+        "description": "One distinct khata (category) derived from the caller's history.\n\n``grp``/``last_used`` come from the khata's *most recent* expense and are\nprefill hints only — reports/budgets keep grouping each expense row by its\nown ``grp`` (ADR-0019).",
+        "properties": {
+          "cat": {
+            "title": "Cat",
+            "type": "string"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "last_used": {
+            "format": "date",
+            "title": "Last Used",
+            "type": "string"
+          },
+          "use_count": {
+            "minimum": 1,
+            "title": "Use Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cat",
+          "grp",
+          "use_count",
+          "last_used"
+        ],
+        "title": "KhataOut",
+        "type": "object"
+      },
+      "LoginIn": {
+        "description": "POST /auth/login body.",
+        "properties": {
+          "email": {
+            "maxLength": 255,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginIn",
+        "type": "object"
+      },
+      "MonthlyReportOut": {
+        "properties": {
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/ReportByDay"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "by_group": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "By Group",
+            "type": "object"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "ym": {
+            "title": "Ym",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ym",
+          "total",
+          "count",
+          "by_group",
+          "by_day"
+        ],
+        "title": "MonthlyReportOut",
+        "type": "object"
+      },
+      "ParsedItem": {
+        "description": "One expense candidate extracted from a transcript segment.",
+        "properties": {
+          "amt": {
+            "title": "Amt",
+            "type": "string"
+          },
+          "cat": {
+            "title": "Cat",
+            "type": "string"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "iso": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iso"
+          },
+          "pay": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cash",
+                  "bkash",
+                  "nagad",
+                  "rocket",
+                  "card",
+                  "bank"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pay"
+          }
+        },
+        "required": [
+          "cat",
+          "grp",
+          "amt"
+        ],
+        "title": "ParsedItem",
+        "type": "object"
+      },
+      "RecurringIn": {
+        "description": "POST /recurring body. ``start_date`` defaults to today (router fills).",
+        "properties": {
+          "amt": {
+            "examples": [
+              "890.00"
+            ],
+            "pattern": "^\\d{1,10}\\.\\d{2}$",
+            "title": "Amt",
+            "type": "string"
+          },
+          "cat": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Cat",
+            "type": "string"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "freq": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly",
+              "yearly"
+            ],
+            "title": "Freq",
+            "type": "string"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "pay": {
+            "default": "cash",
+            "enum": [
+              "cash",
+              "bkash",
+              "nagad",
+              "rocket",
+              "card",
+              "bank"
+            ],
+            "title": "Pay",
+            "type": "string"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          }
+        },
+        "required": [
+          "cat",
+          "grp",
+          "amt",
+          "freq"
+        ],
+        "title": "RecurringIn",
+        "type": "object"
+      },
+      "RecurringListOut": {
+        "description": "Envelope for GET /recurring (ADR-0004 §8).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "RecurringListOut",
+        "type": "object"
+      },
+      "RecurringOut": {
+        "description": "Public rule row; keys mirror the DB columns exactly.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amt": {
+            "title": "Amt",
+            "type": "string"
+          },
+          "cat": {
+            "title": "Cat",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "freq": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly",
+              "yearly"
+            ],
+            "title": "Freq",
+            "type": "string"
+          },
+          "grp": {
+            "enum": [
+              "food",
+              "housing",
+              "utility",
+              "transport",
+              "health",
+              "education",
+              "personal",
+              "other"
+            ],
+            "title": "Grp",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "next_run": {
+            "format": "date",
+            "title": "Next Run",
+            "type": "string"
+          },
+          "pay": {
+            "enum": [
+              "cash",
+              "bkash",
+              "nagad",
+              "rocket",
+              "card",
+              "bank"
+            ],
+            "title": "Pay",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "cat",
+          "grp",
+          "amt",
+          "pay",
+          "freq",
+          "start_date",
+          "next_run",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RecurringOut",
+        "type": "object"
+      },
+      "RecurringRunOut": {
+        "description": "POST /recurring/run result: what THIS run materialized (ADR-0014 §4).\n\n``created == len(expenses)``; ``rules`` is how many due rules were\nprocessed. A repeat run the same day returns ``created: 0`` — the\nidempotency guarantee.",
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "expenses": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Expenses",
+            "type": "array"
+          },
+          "ran_on": {
+            "format": "date",
+            "title": "Ran On",
+            "type": "string"
+          },
+          "rules": {
+            "title": "Rules",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ran_on",
+          "created",
+          "rules",
+          "expenses"
+        ],
+        "title": "RecurringRunOut",
+        "type": "object"
+      },
+      "RecurringUpdate": {
+        "description": "PATCH /recurring/{id} body — every field optional (partial update).",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "amt": {
+            "anyOf": [
+              {
+                "examples": [
+                  "890.00"
+                ],
+                "pattern": "^\\d{1,10}\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amt"
+          },
+          "cat": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cat"
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "freq": {
+            "anyOf": [
+              {
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "yearly"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freq"
+          },
+          "grp": {
+            "anyOf": [
+              {
+                "enum": [
+                  "food",
+                  "housing",
+                  "utility",
+                  "transport",
+                  "health",
+                  "education",
+                  "personal",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grp"
+          },
+          "pay": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cash",
+                  "bkash",
+                  "nagad",
+                  "rocket",
+                  "card",
+                  "bank"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pay"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          }
+        },
+        "title": "RecurringUpdate",
+        "type": "object"
+      },
+      "RefreshIn": {
+        "description": "POST /auth/refresh body.",
+        "properties": {
+          "refreshToken": {
+            "maxLength": 512,
+            "minLength": 16,
+            "title": "Refreshtoken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "title": "RefreshIn",
+        "type": "object"
+      },
+      "RegisterIn": {
+        "description": "POST /auth/register body.",
+        "properties": {
+          "email": {
+            "maxLength": 255,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterIn",
+        "type": "object"
+      },
+      "ReportByDay": {
+        "properties": {
+          "iso": {
+            "format": "date",
+            "title": "Iso",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "iso",
+          "total"
+        ],
+        "title": "ReportByDay",
+        "type": "object"
+      },
+      "ReportByMonth": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "ym": {
+            "title": "Ym",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ym",
+          "total"
+        ],
+        "title": "ReportByMonth",
+        "type": "object"
+      },
+      "RestoreOut": {
+        "description": "POST /import/restore response.",
+        "properties": {
+          "restored": {
+            "$ref": "#/components/schemas/BackupCounts"
+          }
+        },
+        "required": [
+          "restored"
+        ],
+        "title": "RestoreOut",
+        "type": "object"
+      },
+      "RevokeOthersOut": {
+        "description": "POST /auth/sessions/revoke-others response.",
+        "properties": {
+          "revoked": {
+            "title": "Revoked",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "title": "RevokeOthersOut",
+        "type": "object"
+      },
+      "SessionItemOut": {
+        "description": "One live session of the caller (GET /auth/sessions item).\n\n``expires_in`` is the remaining KV TTL of ``sess:<id>`` in seconds —\nthe same lifetime the refresh token has left.",
+        "properties": {
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expires_in"
+        ],
+        "title": "SessionItemOut",
+        "type": "object"
+      },
+      "SessionProbeOut": {
+        "description": "``POST /auth/refresh-cookie`` answer when the request carries NO\n``kh_refresh`` cookie at all: there is no cookie session, so the endpoint\nanswers 200 ``{\"session\": false}`` instead of 401 (keeps browser\ndevtools/consoles free of *expected* 401 noise). A cookie that IS present\nbut invalid/expired/revoked still 401s like the JSON transport.",
+        "properties": {
+          "session": {
+            "title": "Session",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "session"
+        ],
+        "title": "SessionProbeOut",
+        "type": "object"
+      },
+      "SessionsOut": {
+        "description": "GET /auth/sessions response: the caller's live sessions.\n\n``current`` is the session id embedded in the caller's own access token\n(``sid`` claim, ADR-0002). ``null`` means the token carried no ``sid``\nclaim, so the current session cannot be pinpointed (revoke-others will\nrefuse with 409 in that case).",
+        "properties": {
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SessionItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "current"
+        ],
+        "title": "SessionsOut",
+        "type": "object"
+      },
+      "SheetsExportRequest": {
+        "properties": {
+          "month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month"
+          },
+          "sheet": {
+            "title": "Sheet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sheet"
+        ],
+        "title": "SheetsExportRequest",
+        "type": "object"
+      },
+      "SheetsExportResult": {
+        "properties": {
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "SheetsExportResult",
+        "type": "object"
+      },
+      "SheetsStatus": {
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "sa_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sa Email"
+          }
+        },
+        "required": [
+          "configured",
+          "sa_email"
+        ],
+        "title": "SheetsStatus",
+        "type": "object"
+      },
+      "UserOut": {
+        "description": "Public view of a profile.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "isSuperadmin": {
+            "default": false,
+            "title": "Issuperadmin",
+            "type": "boolean"
+          },
+          "isSuspended": {
+            "default": false,
+            "title": "Issuspended",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VoiceParseIn": {
+        "description": "POST /voice/parse body.",
+        "properties": {
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "VoiceParseIn",
+        "type": "object"
+      },
+      "VoiceParseOut": {
+        "properties": {
+          "confidence": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "confidence"
+        ],
+        "title": "VoiceParseOut",
+        "type": "object"
+      },
+      "YearlyReportOut": {
+        "properties": {
+          "by_group": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "By Group",
+            "type": "object"
+          },
+          "by_month": {
+            "items": {
+              "$ref": "#/components/schemas/ReportByMonth"
+            },
+            "title": "By Month",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "total",
+          "count",
+          "by_group",
+          "by_month"
+        ],
+        "title": "YearlyReportOut",
+        "type": "object"
+      },
+      "AdminPlatformStatsOut": {
+        "description": "Global system-wide statistics for superadmins.",
+        "properties": {
+          "activeRecurring": {
+            "title": "Activerecurring",
+            "type": "integer"
+          },
+          "totalAmount": {
+            "title": "Totalamount",
+            "type": "string"
+          },
+          "totalDebts": {
+            "title": "Totaldebts",
+            "type": "integer"
+          },
+          "totalExpenses": {
+            "title": "Totalexpenses",
+            "type": "integer"
+          },
+          "totalUsers": {
+            "title": "Totalusers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "totalUsers",
+          "totalExpenses",
+          "totalAmount",
+          "totalDebts",
+          "activeRecurring"
+        ],
+        "title": "AdminPlatformStatsOut",
+        "type": "object"
+      },
+      "AdminUserItemOut": {
+        "description": "User row in the admin users list.",
+        "properties": {
+          "budgetCount": {
+            "default": 0,
+            "title": "Budgetcount",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "debtCount": {
+            "default": 0,
+            "title": "Debtcount",
+            "type": "integer"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expenseCount": {
+            "default": 0,
+            "title": "Expensecount",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isSuperadmin": {
+            "title": "Issuperadmin",
+            "type": "boolean"
+          },
+          "lang": {
+            "title": "Lang",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recurringCount": {
+            "default": 0,
+            "title": "Recurringcount",
+            "type": "integer"
+          },
+          "theme": {
+            "title": "Theme",
+            "type": "string"
+          },
+          "totalExpense": {
+            "default": "0.00",
+            "title": "Totalexpense",
+            "type": "string"
+          },
+          "isSuspended": {
+            "default": false,
+            "title": "Issuspended",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "createdAt",
+          "lang",
+          "theme",
+          "isSuperadmin",
+          "isSuspended"
+        ],
+        "title": "AdminUserItemOut",
+        "type": "object"
+      },
+      "AdminUserListOut": {
+        "description": "List of users with pagination total.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserListOut",
+        "type": "object"
+      },
+      "AdminUserBudgetOut": {
+        "description": "User budget configuration.",
+        "properties": {
+          "cats": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Cats",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updatedat"
+          }
+        },
+        "required": [
+          "total",
+          "cats"
+        ],
+        "title": "AdminUserBudgetOut",
+        "type": "object"
+      },
+      "AdminUserDetailOut": {
+        "description": "Comprehensive user data summary for superadmins.",
+        "properties": {
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminUserBudgetOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "currentMonthExpense": {
+            "default": "0.00",
+            "title": "Currentmonthexpense",
+            "type": "string"
+          },
+          "netDebt": {
+            "default": "0.00",
+            "title": "Netdebt",
+            "type": "string"
+          },
+          "totalBorrow": {
+            "default": "0.00",
+            "title": "Totalborrow",
+            "type": "string"
+          },
+          "totalLend": {
+            "default": "0.00",
+            "title": "Totallend",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AdminUserItemOut"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "title": "AdminUserDetailOut",
+        "type": "object"
+      },
+      "AdminUserExpensesOut": {
+        "description": "List of expenses for a specific user.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserExpensesOut",
+        "type": "object"
+      },
+      "AdminUserDebtsOut": {
+        "description": "List of debts for a specific user.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DebtOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserDebtsOut",
+        "type": "object"
+      },
+      "AdminUserRecurringOut": {
+        "description": "List of recurring rules for a specific user.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserRecurringOut",
+        "type": "object"
+      },
+      "AdminUserSuspendIn": {
+        "description": "Payload to suspend or unsuspend a user.",
+        "properties": {
+          "suspended": {
+            "default": true,
+            "title": "Suspended",
+            "type": "boolean"
+          }
+        },
+        "title": "AdminUserSuspendIn",
+        "type": "object"
+      },
+      "AdminUserActionOut": {
+        "description": "Result of an admin action on a user.",
+        "properties": {
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "AdminUserActionOut",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Poi Poi Hisab API",
+    "version": "0.28.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Verify credentials and start a session (401 with a uniform message).",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Revoke the caller's session and its current refresh token (204).",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout-cookie": {
+      "post": {
+        "description": "Clear the refresh cookie and revoke the session it points at (204).\n\nIdempotent: a missing/unknown cookie still clears the cookie and answers\n204. Revocation mirrors ``POST /auth/logout`` (session record + current\nrefresh token die together).",
+        "operationId": "logout_cookie_api_v1_auth_logout_cookie_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout Cookie",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "description": "Return the authenticated user's public profile.",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Rotate a refresh token; reuse of an old token revokes the session.",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh-cookie": {
+      "post": {
+        "description": "Rotate the refresh token carried in the ``kh_refresh`` httpOnly cookie.\n\nWith a cookie present: identical semantics to ``POST /auth/refresh``\n(same KV keys, same reuse detection); the rotated token is returned in\nthe body AND set as the new cookie (HttpOnly, Secure, SameSite=Lax,\npath=/api/v1/auth).\n\nSession probe (T14.1): a request carrying NO ``kh_refresh`` cookie at\nall answers 200 ``{\"session\": false}`` and sets no cookie — the web\nboot probes this endpoint whenever no cookie exists, and that expected\nempty state must not pollute devtools with 401s. A cookie that IS\npresent but invalid/expired/revoked/reused still 401s exactly like the\nJSON transport.",
+        "operationId": "refresh_cookie_api_v1_auth_refresh_cookie_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AuthOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionProbeOut"
+                    }
+                  ],
+                  "title": "Response Refresh Cookie Api V1 Auth Refresh Cookie Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refresh Cookie",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "description": "Create a profile and start a session (201 with a fresh token pair).",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "description": "List the caller's LIVE sessions, newest TTLs included (200).\n\nThe per-user index is pruned of dead members on read, so the response\nonly ever shows sessions that can actually still refresh. ``current`` is\nthe ``sid`` claim of the caller's own access token (ADR-0002); ``null``\nwhen the token carries no ``sid`` claim (current session unknown).",
+        "operationId": "list_sessions_api_v1_auth_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/revoke-others": {
+      "post": {
+        "description": "Revoke every live session of the caller EXCEPT the current one.\n\nSame teardown semantics as ``POST /auth/logout`` per victim session:\n``sess:<sid>`` + its current ``rt:<hash>`` die together, and the sid is\nremoved from the profile's index. Idempotent — with nothing else live it\nanswers ``{\"revoked\": 0}``. 409 when the caller's token has no ``sid``\nclaim (nothing is revoked: refusing beats guessing what to keep).",
+        "operationId": "revoke_other_sessions_api_v1_auth_sessions_revoke_others_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeOthersOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Other Sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/budgets": {
+      "get": {
+        "description": "Budget vs spend for one month (``?ym=YYYY-MM``, default: current).",
+        "operationId": "get_budgets_api_v1_budgets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ym",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ym"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Budgets",
+        "tags": [
+          "budgets"
+        ]
+      },
+      "put": {
+        "description": "Upsert the caller's budget; returns the GET view for the current month.",
+        "operationId": "put_budgets_api_v1_budgets_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Budgets",
+        "tags": [
+          "budgets"
+        ]
+      }
+    },
+    "/api/v1/debts": {
+      "get": {
+        "description": "List the caller's debts, newest first, keyset-paginated.\n\n``?status=open`` (default) keeps rows with ``settled_at IS NULL``;\n``settled`` the complement; ``all`` both.",
+        "operationId": "list_debts_api_v1_debts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "settled",
+                "all"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebtListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Debts",
+        "tags": [
+          "debts"
+        ]
+      },
+      "post": {
+        "description": "Record one debt (201 with the stored row; ``iso`` defaults to today).",
+        "operationId": "create_debt_api_v1_debts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebtIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebtOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Debt",
+        "tags": [
+          "debts"
+        ]
+      }
+    },
+    "/api/v1/debts/{debt_id}": {
+      "delete": {
+        "description": "Delete the caller's debt (204; unknown/foreign id → 404).",
+        "operationId": "delete_debt_api_v1_debts__debt_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "debt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Debt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Debt",
+        "tags": [
+          "debts"
+        ]
+      },
+      "patch": {
+        "description": "Partially update the caller's debt (omitted fields stay as-is).",
+        "operationId": "update_debt_api_v1_debts__debt_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "debt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Debt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebtUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebtOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Debt",
+        "tags": [
+          "debts"
+        ]
+      }
+    },
+    "/api/v1/debts/{debt_id}/pay": {
+      "post": {
+        "description": "Close out a debt with a payment.\n\n``amt >= debt.amt`` → FULL: the debt settles (``settled_at`` = now UTC,\nthe stored amount is left untouched — overpay is not recorded).\n``0 < amt < debt.amt`` → PARTIAL: the remaining amount shrinks.\nPaying an already-settled debt → 409 ``debt_already_settled``.",
+        "operationId": "pay_debt_api_v1_debts__debt_id__pay_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "debt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Debt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebtPayIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebtPayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pay Debt",
+        "tags": [
+          "debts"
+        ]
+      }
+    },
+    "/api/v1/expenses": {
+      "get": {
+        "description": "List the caller's expenses, newest first, keyset-paginated.",
+        "operationId": "list_expenses_api_v1_expenses_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Expenses",
+        "tags": [
+          "expenses"
+        ]
+      },
+      "post": {
+        "description": "Record one expense (201 with the stored row).",
+        "operationId": "create_expense_api_v1_expenses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Expense",
+        "tags": [
+          "expenses"
+        ]
+      }
+    },
+    "/api/v1/expenses/bulk": {
+      "post": {
+        "description": "Insert up to 50 expenses for the caller in a single flush.",
+        "operationId": "create_expenses_bulk_api_v1_expenses_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkExpensesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkExpensesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Expenses Bulk",
+        "tags": [
+          "expenses"
+        ]
+      }
+    },
+    "/api/v1/expenses/categories": {
+      "get": {
+        "description": "Distinct khatas derived from the caller's expense history (ADR-0019).\n\nOne row per distinct ``cat``: ``grp``/``last_used`` come from the khata's\nmost recent expense (window pass, portable across SQLite/Postgres — no\n``DISTINCT ON``), ``use_count`` from a partition count. Ordered\nmost-used → most-recent → cat. A khata set is bounded by the user's own\ndistinct cats, so it is picker-sized and unpaginated.",
+        "operationId": "list_khata_categories_api_v1_expenses_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KhataListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Khata Categories",
+        "tags": [
+          "expenses"
+        ]
+      }
+    },
+    "/api/v1/expenses/{expense_id}": {
+      "delete": {
+        "description": "Delete the caller's expense (204; unknown/foreign id → 404).",
+        "operationId": "delete_expense_api_v1_expenses__expense_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expense_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expense Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Expense",
+        "tags": [
+          "expenses"
+        ]
+      },
+      "patch": {
+        "description": "Partially update the caller's expense (omitted fields stay as-is).",
+        "operationId": "update_expense_api_v1_expenses__expense_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expense_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expense Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenseUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Expense",
+        "tags": [
+          "expenses"
+        ]
+      }
+    },
+    "/api/v1/export/backup.json": {
+      "get": {
+        "description": "Dump the caller's complete ledger as one JSON envelope (ADR-0012).\n\nEvery column of every expenses/debts/budgets row; rows are ordered\ndeterministically (``iso ASC, id ASC`` — the CSV export's order) so the\nsame data always yields the same document modulo ``exported_at``.",
+        "operationId": "export_backup_json_api_v1_export_backup_json_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Backup Json",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/export/expenses.csv": {
+      "get": {
+        "description": "Stream the caller's expenses as a Bengali-friendly CSV attachment.",
+        "operationId": "export_expenses_csv_api_v1_export_expenses_csv_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Expenses Csv",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/export/sheets": {
+      "post": {
+        "operationId": "export_sheets_api_v1_export_sheets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SheetsExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetsExportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Sheets",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/export/sheets/status": {
+      "get": {
+        "operationId": "sheets_status_api_v1_export_sheets_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetsStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sheets Status",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/healthz": {
+      "get": {
+        "operationId": "healthz_api_v1_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Healthz"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Healthz",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/import/restore": {
+      "post": {
+        "description": "REPLACE the caller's ledger with the uploaded backup (v1/v2, ADR-0012).\n\nThe whole swap is one transaction: delete the caller's budgets, debts,\nexpenses AND recurring rules, insert the uploaded rows with fresh PKs,\ncommit. Recurring rows are wiped for BOTH versions — a v1 file predates\nrules, so restoring it means the ledger equals the file (ADR-0028).\nRows whose validation fails never reach the database; a failure\nmid-insert rolls the deletes back too.",
+        "operationId": "import_restore_api_v1_import_restore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "description": "A GET /export/backup.json envelope (schema_version 1 or 2).",
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Restore",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/recurring": {
+      "get": {
+        "description": "List the caller's rules, newest first, keyset-paginated.\n\n``?active=true`` keeps only running rules, ``false`` only paused ones;\nomit for both.",
+        "operationId": "list_recurring_api_v1_recurring_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "active",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Active"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Recurring",
+        "tags": [
+          "recurring"
+        ]
+      },
+      "post": {
+        "description": "Create one rule (201 with the stored row).\n\n``start_date`` is the FIRST occurrence and defaults to today; the\nmaterialization cursor starts there: ``next_run = start_date``.",
+        "operationId": "create_recurring_api_v1_recurring_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Recurring",
+        "tags": [
+          "recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/run": {
+      "post": {
+        "description": "Materialize every due occurrence of the caller's active rules (ADR-0014).\n\nA rule is due while ``next_run <= today``. Each due occurrence becomes one\n``expenses`` row with ``iso`` = the occurrence date (catch-up included, up\nto :data:`_MAX_CATCH_UP` per rule); then ``next_run`` moves past ``today``.\nPaused (``active=false``) and future-dated rules are skipped. Re-running\nthe same day is a no-op: ``created: 0`` — the idempotency contract.",
+        "operationId": "run_recurring_api_v1_recurring_run_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Recurring",
+        "tags": [
+          "recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/{recurring_id}": {
+      "delete": {
+        "description": "Delete the caller's rule (204; unknown/foreign id → 404).\n\nDeleting a rule never touches expenses it already materialized.",
+        "operationId": "delete_recurring_api_v1_recurring__recurring_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recurring_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recurring Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Recurring",
+        "tags": [
+          "recurring"
+        ]
+      },
+      "patch": {
+        "description": "Partially update the caller's rule (omitted fields stay as-is).\n\n``next_run`` is server-owned and forward-only (ADR-0014 §3): if the patch\nchanges ``freq`` or ``start_date``, the cursor is clamped to\n``max(current next_run, new start_date)`` — it can advance (a later\nstart_date postpones materialization) but never rewind (which would\nre-materialize occurrences that already became expenses).",
+        "operationId": "update_recurring_api_v1_recurring__recurring_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recurring_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Recurring Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Recurring",
+        "tags": [
+          "recurring"
+        ]
+      }
+    },
+    "/api/v1/reports/monthly": {
+      "get": {
+        "description": "Aggregates for one month (``?ym=YYYY-MM``, default: current month).",
+        "operationId": "monthly_report_api_v1_reports_monthly_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ym",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ym"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Monthly Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/yearly": {
+      "get": {
+        "description": "Aggregates for one year (``?year=YYYY``, default: current year).",
+        "operationId": "yearly_report_api_v1_reports_yearly_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/YearlyReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Yearly Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/voice/parse": {
+      "post": {
+        "description": "Rule-parse a Bengali voice transcript into expense candidates.\n\nThe keyword matcher is extended with the caller's history-derived khatas\n(ADR-0019) — every khata the user has ever saved is recognised on the\nnext transcript, free of any AI/token cost. Pure SQL + rules.",
+        "operationId": "parse_transcript_api_v1_voice_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceParseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceParseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Parse Transcript",
+        "tags": [
+          "voice"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Healthz"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Healthz",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/admin/stats": {
+      "get": {
+        "operationId": "get_platform_stats_api_v1_admin_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPlatformStatsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Return platform-wide summary statistics.",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "operationId": "list_admin_users_api_v1_admin_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search and list all users with aggregated financial metrics.",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}": {
+      "get": {
+        "operationId": "get_admin_user_detail_api_v1_admin_users__user_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Fetch complete user profile and aggregated metrics.",
+        "tags": [
+          "admin"
+        ]
+      },
+      "delete": {
+        "summary": "Permanently delete a user",
+        "operationId": "delete_admin_user",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserActionOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (e.g. self-delete)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/expenses": {
+      "get": {
+        "operationId": "get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserExpensesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Return expenses for a specific user.",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/debts": {
+      "get": {
+        "operationId": "get_admin_user_debts_api_v1_admin_users__user_id__debts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDebtsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Return all debts for a specific user.",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/recurring": {
+      "get": {
+        "operationId": "get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserRecurringOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Return recurring expense rules for a specific user.",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/suspend": {
+      "post": {
+        "summary": "Suspend or reactivate a user",
+        "operationId": "suspend_admin_user",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserSuspendIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserActionOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (e.g. self-suspend)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    }
+  }
+}

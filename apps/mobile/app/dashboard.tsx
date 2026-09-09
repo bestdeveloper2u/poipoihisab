@@ -1,0 +1,632 @@
+import { BRAND_NAME, formatTaka, t } from "@poipoihisab/core";
+import { Redirect, router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+import {
+  listExpenses,
+  monthlyReport,
+  type Expense,
+  type MonthlyReport,
+} from "../lib/api";
+import { describeApiError } from "../lib/errors";
+import { useAuth } from "../lib/auth";
+import {
+  mergeOptimisticRows,
+  pendingVersion,
+  subscribe as subscribeOptimistic,
+} from "../lib/optimistic";
+import { GROUP_LABELS, STRINGS } from "../lib/strings";
+import { usePrefs } from "../lib/prefs";
+import { theme, type ThemeColors } from "../lib/theme";
+
+const RECENT_LIMIT = 5;
+
+/** "YYYY-MM" for the current month, UTC — the API's ?ym= domain. */
+function currentYm(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+/**
+ * Dashboard (T3.4): current-month total + per-group breakdown from
+ * GET /api/v1/reports/monthly, plus the most recent expenses from
+ * GET /api/v1/expenses (first page only — the full list lives on /).
+ */
+export default function Dashboard() {
+  const { colors } = usePrefs();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const auth = useAuth();
+
+  const [report, setReport] = useState<MonthlyReport | null>(null);
+  const [recent, setRecent] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Guard against out-of-order responses (focus racing pull-to-refresh).
+  const seq = useRef(0);
+
+  // T27.2 — optimistic creates: re-render whenever the pending-create store
+  // mutates; the merged recent rows are computed at render time below.
+  useSyncExternalStore(subscribeOptimistic, pendingVersion);
+
+  const load = useCallback(
+    async (viaPull: boolean) => {
+      const token = auth.accessToken;
+      if (!token) return;
+      const mine = ++seq.current;
+      if (viaPull) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        // Report + recent list are independent — fetch both, fail together.
+        const [month, recentPage] = await Promise.all([
+          monthlyReport(token, currentYm()),
+          listExpenses(token, { limit: RECENT_LIMIT }),
+        ]);
+        if (seq.current !== mine) return;
+        setReport(month);
+        setRecent(recentPage.items);
+      } catch (err) {
+        if (seq.current === mine) setError(describeApiError(err));
+      } finally {
+        if (seq.current === mine) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [auth.accessToken],
+  );
+
+  // Reload on every focus so a freshly added expense shows up on return.
+  useFocusEffect(
+    useCallback(() => {
+      void load(false);
+    }, [load]),
+  );
+
+  if (!auth.user) {
+    return <Redirect href="/login" />;
+  }
+
+  // Sorted high→low for the by-group breakdown; labels fall back to the raw
+  // API group name for anything GROUP_LABELS does not know about.
+  const groupRows =
+    report === null
+      ? []
+      : Object.entries(report.by_group).sort(([, a], [, b]) =>
+          b.localeCompare(a),
+        );
+
+  // T27.2 — merge the optimistic-create store into the recent rows: pending
+  // temps append LAST, resolved temps disappear, and a resolved-but-unfetched
+  // real row bridges until the focus refetch (never a temp + real twin).
+  const recentRows = mergeOptimisticRows(recent);
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={styles.brand}>{BRAND_NAME}</Text>
+          <Text style={styles.title}>{STRINGS.bn.dashboardTitle}</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.settingsButton,
+            pressed && styles.settingsButtonPressed,
+          ]}
+          onPress={() => router.push("/settings")}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.bn.settings}
+        >
+          <Text style={styles.settingsIcon}>⚙️</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void load(true)}
+            tintColor={colors.emerald}
+            colors={[colors.emerald]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+      >
+        {error !== null ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.retryButton,
+                pressed && styles.retryButtonPressed,
+              ]}
+              onPress={() => void load(false)}
+              accessibilityRole="button"
+              accessibilityLabel={STRINGS.bn.retry}
+            >
+              <Text style={styles.retryLabel}>{STRINGS.bn.retry}</Text>
+            </Pressable>
+          </View>
+        ) : loading ? (
+          <Text style={styles.centerNote}>{STRINGS.bn.loadingList}</Text>
+        ) : (
+          <>
+            <View style={styles.totalCard}>
+              <Text style={styles.cardLabel}>{STRINGS.bn.monthTotal}</Text>
+              <Text style={styles.totalAmt}>
+                {formatTaka(report?.total ?? "0.00", "bn")}
+              </Text>
+              <Text style={styles.cardMeta}>
+                {report?.ym} · {report?.count ?? 0} {STRINGS.bn.monthCount}
+              </Text>
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>{STRINGS.bn.byGroup}</Text>
+              {groupRows.length === 0 ? (
+                <Text style={styles.emptyNote}>
+                  {STRINGS.bn.noExpensesThisMonth}
+                </Text>
+              ) : (
+                groupRows.map(([grp, amt]) => (
+                  <View style={styles.groupRow} key={grp}>
+                    <Text style={styles.groupLabel} numberOfLines={1}>
+                      {grp in GROUP_LABELS
+                        ? GROUP_LABELS[grp as keyof typeof GROUP_LABELS]
+                        : grp}
+                    </Text>
+                    <Text style={styles.groupAmt}>
+                      {formatTaka(amt, "bn")}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* T22.3 — prototype emptyCta parity: when the already-fetched
+                monthly report has zero entries, offer the two quick add paths
+                above the recent section instead of a dead-end empty note
+                (reuses the fetched report — no new requests). */}
+            {report !== null && report.count === 0 && (
+              <View style={styles.emptyCtaCard}>
+                <Text style={styles.emptyCtaTitle} numberOfLines={2}>
+                  {STRINGS.bn.emptyCtaTitle}
+                </Text>
+                <View style={styles.emptyCtaActions}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emptyCtaBtn,
+                      styles.emptyCtaBtnPrimary,
+                      pressed && styles.emptyCtaBtnPrimaryPressed,
+                    ]}
+                    onPress={() => router.push("/add")}
+                    accessibilityRole="button"
+                    accessibilityLabel={STRINGS.bn.emptyCtaAdd}
+                  >
+                    <Text
+                      style={styles.emptyCtaBtnPrimaryLabel}
+                      numberOfLines={2}
+                    >
+                      {STRINGS.bn.emptyCtaAdd}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emptyCtaBtn,
+                      styles.emptyCtaBtnGhost,
+                      pressed && styles.emptyCtaBtnGhostPressed,
+                    ]}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/add",
+                        params: { voice: "1" },
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={STRINGS.bn.emptyCtaVoice}
+                  >
+                    <Text
+                      style={styles.emptyCtaBtnGhostLabel}
+                      numberOfLines={2}
+                    >
+                      {STRINGS.bn.emptyCtaVoice}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.card}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>
+                  {STRINGS.bn.recentExpenses}
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.seeAllButton,
+                    pressed && styles.seeAllButtonPressed,
+                  ]}
+                  onPress={() => router.push("/list")}
+                  accessibilityRole="button"
+                  accessibilityLabel={STRINGS.bn.openAllExpenses}
+                >
+                  <Text style={styles.seeAllLabel} numberOfLines={1}>
+                    {STRINGS.bn.openAllExpenses} ›
+                  </Text>
+                </Pressable>
+              </View>
+              {recentRows.length === 0 ? (
+                <Text style={styles.emptyNote}>{STRINGS.bn.emptyList}</Text>
+              ) : (
+                recentRows.map((expense) => (
+                  <View style={styles.recentRow} key={expense.id}>
+                    <View style={styles.recentMain}>
+                      <Text style={styles.recentCat} numberOfLines={1}>
+                        {expense.cat}
+                      </Text>
+                      <Text style={styles.recentMeta}>{expense.iso}</Text>
+                    </View>
+                    <Text style={styles.recentAmt}>
+                      {formatTaka(expense.amt, "bn")}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.debtsButton,
+            pressed && styles.debtsButtonPressed,
+          ]}
+          onPress={() => router.push("/report")}
+          accessibilityRole="button"
+          accessibilityLabel={t("bn", "navReport")}
+        >
+          <Text style={styles.debtsButtonLabel}>{t("bn", "navReport")} →</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.debtsButton,
+            pressed && styles.debtsButtonPressed,
+          ]}
+          onPress={() => router.push("/month")}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.bn.monthTitle}
+        >
+          <Text style={styles.debtsButtonLabel} numberOfLines={1}>
+            {STRINGS.bn.monthTitle} →
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.debtsButton,
+            pressed && styles.debtsButtonPressed,
+          ]}
+          onPress={() => router.push("/debts")}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.bn.openDebts}
+        >
+          <Text style={styles.debtsButtonLabel}>
+            {STRINGS.bn.openDebts} →
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.debtsButton,
+            pressed && styles.debtsButtonPressed,
+          ]}
+          onPress={() => router.push("/budget")}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.bn.budgetTitle}
+        >
+          <Text style={styles.debtsButtonLabel}>
+            {STRINGS.bn.budgetTitle} →
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.debtsButton,
+            pressed && styles.debtsButtonPressed,
+          ]}
+          onPress={() => router.push("/recurring")}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.bn.openRecurring}
+        >
+          <Text style={styles.debtsButtonLabel} numberOfLines={1}>
+            {STRINGS.bn.openRecurring} →
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.backButtonPressed,
+          ]}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={t("bn", "navExpenses")}
+        >
+          <Text style={styles.backLabel}>← {t("bn", "navExpenses")}</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.ivory,
+  },
+  header: {
+    backgroundColor: colors.emerald,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: theme.spacing.xl * 2,
+    paddingBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  headerText: {
+    alignItems: "center",
+    gap: theme.spacing.xs,
+    flex: 1,
+  },
+  settingsButton: {
+    backgroundColor: colors.emeraldSoft,
+    borderRadius: theme.radius.control,
+    padding: theme.spacing.sm,
+  },
+  settingsButtonPressed: {
+    opacity: 0.7,
+  },
+  settingsIcon: {
+    fontSize: 16,
+    color: colors.emerald,
+  },
+  brand: {
+    color: colors.onAccent,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  title: {
+    color: colors.onAccent,
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  totalCard: {
+    backgroundColor: colors.emerald,
+    borderRadius: theme.radius.card,
+    padding: theme.spacing.xl,
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
+  cardLabel: {
+    color: colors.emeraldSoft,
+    fontSize: 13,
+  },
+  totalAmt: {
+    color: colors.onAccent,
+    fontSize: 34,
+    fontWeight: "700",
+  },
+  cardMeta: {
+    color: colors.emeraldSoft,
+    fontSize: 12,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: theme.radius.card,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.md,
+  },
+  seeAllButton: {
+    borderRadius: theme.radius.control,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  seeAllButtonPressed: {
+    backgroundColor: colors.surface2,
+  },
+  seeAllLabel: {
+    color: colors.emerald,
+    fontSize: 13,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
+  groupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.md,
+  },
+  groupLabel: {
+    color: colors.ink,
+    fontSize: 14,
+    flex: 1,
+  },
+  groupAmt: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  recentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  recentMain: {
+    flex: 1,
+    gap: 2,
+  },
+  recentCat: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  recentMeta: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+  recentAmt: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  emptyNote: {
+    color: colors.muted,
+    fontSize: 13,
+  },
+  // --- Dashboard empty-state CTA (T22.3 — prototype emptyCta parity) -------
+  // Buttons sit side by side at 360px and wrap under font scaling; the
+  // 44px minHeight keeps both hit targets touch-friendly.
+  emptyCtaCard: {
+    backgroundColor: colors.surface,
+    borderRadius: theme.radius.card,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    alignItems: "flex-start",
+  },
+  emptyCtaTitle: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  emptyCtaActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignSelf: "stretch",
+    gap: theme.spacing.sm,
+  },
+  emptyCtaBtn: {
+    flexGrow: 1,
+    flexBasis: "45%",
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.control,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  emptyCtaBtnPrimary: {
+    backgroundColor: colors.emerald,
+  },
+  emptyCtaBtnPrimaryPressed: {
+    opacity: 0.8,
+  },
+  emptyCtaBtnGhost: {
+    backgroundColor: colors.surface2,
+  },
+  emptyCtaBtnGhostPressed: {
+    opacity: 0.8,
+  },
+  emptyCtaBtnPrimaryLabel: {
+    color: colors.onAccent,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  emptyCtaBtnGhostLabel: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  centerNote: {
+    color: colors.muted,
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: theme.spacing.xl,
+  },
+  errorBox: {
+    alignItems: "center",
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.xl,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: colors.surface,
+    borderRadius: theme.radius.control,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  retryButtonPressed: {
+    backgroundColor: colors.surface2,
+  },
+  retryLabel: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  debtsButton: {
+    backgroundColor: colors.surface,
+    borderRadius: theme.radius.control,
+    alignItems: "center",
+    paddingVertical: theme.spacing.md,
+  },
+  debtsButtonPressed: {
+    backgroundColor: colors.surface2,
+  },
+  debtsButtonLabel: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  backButton: {
+    alignSelf: "center",
+    borderRadius: theme.radius.control,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  backButtonPressed: {
+    backgroundColor: colors.surface2,
+  },
+  backLabel: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});

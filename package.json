@@ -1,0 +1,20 @@
+{
+  "name": "poipoihisab-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": { "node": ">=22" },
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @poipoihisab/web dev",
+    "build:web": "pnpm --filter @poipoihisab/web build",
+    "test:web": "pnpm --filter @poipoihisab/web test",
+    "lint:web": "pnpm --filter @poipoihisab/web lint",
+    "typecheck:web": "pnpm --filter @poipoihisab/web typecheck",
+    "typecheck:mobile": "pnpm --filter @poipoihisab/mobile typecheck",
+    "test:core": "pnpm --filter @poipoihisab/core test",
+    "generate:client": "pnpm --filter @poipoihisab/api-client generate"
+  }
+}
