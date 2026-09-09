@@ -81,14 +81,14 @@ export function AdminOverview() {
 
       {/* Deployment problems come first: a KV fallback or a missing audit
           table makes every number below less trustworthy. */}
-      {system && system.warnings.length > 0 && (
+      {system && (system.warnings ?? []).length > 0 && (
         <AdminBanner tone="warn">
           <div className="flex items-start gap-2.5">
             <IconActivity className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="font-bold">{w(lang, "adminSystemWarnings")}</p>
               <ul className="mt-1 list-disc space-y-1 pl-4 text-xs font-medium">
-                {system.warnings.map((warning) => (
+                {(system.warnings ?? []).map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
               </ul>

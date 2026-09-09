@@ -89,11 +89,11 @@ export function AdminSystem() {
 
       {data && (
         <>
-          {data.warnings.length > 0 ? (
+          {(data.warnings ?? []).length > 0 ? (
             <AdminBanner tone="warn">
               <p className="font-bold">{w(lang, "adminSystemWarnings")}</p>
               <ul className="mt-1.5 list-disc space-y-1.5 pl-4 text-xs font-medium">
-                {data.warnings.map((warning) => (
+                {(data.warnings ?? []).map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
               </ul>
