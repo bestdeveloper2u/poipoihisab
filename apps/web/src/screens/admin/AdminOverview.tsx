@@ -69,7 +69,7 @@ export function AdminOverview() {
   if (loading && !stats) return <AdminLoading lang={lang} />;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-1 pb-12 pt-2">
+    <div className="w-full space-y-5 pb-12 pt-2">
       <AdminHeader
         icon={IconShield}
         title={w(lang, "adminTitle")}

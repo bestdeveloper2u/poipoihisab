@@ -74,7 +74,7 @@ function keysByLang(src, langs) {
 }
 
 let errorsBefore = 0;
-const report = (label, path, langs, callers) => {
+const report = (label, path, langs, callers, dictVars = []) => {
   const src = read(path);
   if (src === null) {
     r.error(`${path} not found`);
@@ -97,8 +97,14 @@ const report = (label, path, langs, callers) => {
      false errors on its first run:
 
        w(lang, "adminInspect")                     — a direct lookup
+       W[lang].statToday                           — straight off the dictionary
        <AdminEmpty messageKey="noBudget" />        — the key travels as a prop
        THEME_OPTIONS.map((o) => w(lang, o.labelKey))  — and as table data
+
+     The second form cost a false positive on the first run of this audit:
+     Dashboard.tsx reads eleven keys as `W[lang].x` rather than through `w()`,
+     and reporting those as dead would have been the audit's own bug reported
+     as the codebase's.
 
      The second form is real and common here, and no textual scan can follow it.
      So a key counts as used if it is looked up directly OR if its exact name
@@ -120,6 +126,12 @@ const report = (label, path, langs, callers) => {
         }
       }
       for (const m of src2.matchAll(/["']([A-Za-z][A-Za-z0-9_]{2,})["']/g)) literals.add(m[1]);
+      // `W[lang].key` / `DICT[lang].key` — a lookup that never mentions w()/t().
+      for (const v of dictVars) {
+        for (const m of src2.matchAll(new RegExp(`\\b${v}\\[[^\\]]+\\]\\.([A-Za-z][A-Za-z0-9_]*)`, 'g'))) {
+          used.add(m[1]);
+        }
+      }
     }
   }
 
@@ -131,6 +143,7 @@ const report = (label, path, langs, callers) => {
   }
   let dead = 0;
   let indirect = 0;
+  const orphans = [];
   for (const key of defined) {
     if (used.has(key)) continue;
     if (literals.has(key)) {
@@ -138,7 +151,26 @@ const report = (label, path, langs, callers) => {
       continue;
     }
     dead++;
-    r.error(`${label}: "${key}" is defined in ${path} but its name appears nowhere in the source`);
+    orphans.push(key);
+  }
+
+  /* RATCHET, do not block (rule 4 for adding an audit). The orphaned keys are
+     prototype leftovers in R1's dictionary, and clearing them mid-R2 is exactly
+     the "quickly also fix something else" the one rule forbids. So the known
+     count is baselined and only an INCREASE fails: a new dead key cannot be
+     added, and the number can only go down. Lower the baseline when you delete
+     them; the audit fails if the baseline is higher than reality, so it cannot
+     be left stale. */
+  const baseline = (spec.orphanBaseline ?? {})[label] ?? 0;
+  if (dead > baseline) {
+    for (const key of orphans) {
+      r.error(`${label}: "${key}" is defined in ${path} but its name appears nowhere in the source`);
+    }
+    r.error(`${label}: ${dead} orphaned key(s), baseline is ${baseline} — a new dead key was added`);
+  } else if (dead < baseline) {
+    r.error(`${label}: ${dead} orphaned key(s) but the baseline still says ${baseline} — lower it in audit.config.json`);
+  } else if (dead > 0) {
+    r.warn(`${label}: ${dead} orphaned key(s) held at baseline — see BACKLOG.md`);
   }
 
   console.log(
@@ -146,8 +178,10 @@ const report = (label, path, langs, callers) => {
   );
 };
 
-report('web', spec.webDict, spec.langs ?? ['bn', 'en'], ['w']);
-if (spec.coreDict) report('core', spec.coreDict, spec.langs ?? ['bn', 'en'], ['t']);
+report('web', spec.webDict, spec.langs ?? ['bn', 'en'], ['w'], spec.webDictVars ?? ['W']);
+if (spec.coreDict) {
+  report('core', spec.coreDict, spec.langs ?? ['bn', 'en'], ['t'], spec.coreDictVars ?? ['DICT']);
+}
 
 void errorsBefore;
 if (r.finish()) r.ok('every key exists in every language, and every defined key is used');

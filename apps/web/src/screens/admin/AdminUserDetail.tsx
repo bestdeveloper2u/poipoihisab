@@ -137,7 +137,7 @@ export function AdminUserDetail() {
 
   if (!detail) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 px-1 pt-6">
+      <div className="w-full space-y-4 pt-6">
         <AdminBanner tone="error">{error ?? w(lang, "adminUserNotFound")}</AdminBanner>
         <Link to="/admin/users" className="text-sm font-semibold text-emerald hover:underline">
           ← {w(lang, "adminUsersTable")}
@@ -179,7 +179,7 @@ export function AdminUserDetail() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-1 pb-12 pt-2">
+    <div className="w-full space-y-5 pb-12 pt-2">
       <Link to="/admin/users" className="text-sm font-semibold text-emerald hover:underline">
         ← {w(lang, "adminUsersTable")}
       </Link>

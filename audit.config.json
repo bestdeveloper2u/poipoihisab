@@ -23,7 +23,9 @@
       "instead": [
         "khoroch"
       ],
-      "allow": []
+      "allow": [
+        "`khoroch`"
+      ]
     },
     {
       "use": "superadmin",
@@ -48,7 +50,17 @@
     "langs": [
       "bn",
       "en"
-    ]
+    ],
+    "webDictVars": [
+      "W"
+    ],
+    "coreDictVars": [
+      "DICT"
+    ],
+    "orphanBaseline": {
+      "web": 10,
+      "core": 0
+    }
   },
   "api": {
     "settings": "apps/api/app/core/config.py",

@@ -88,7 +88,7 @@ export function AdminAnalytics() {
   const peak = data ? Math.max(1, ...data.trend.map((p) => Number(p.amount))) : 1;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-1 pb-12 pt-2">
+    <div className="w-full space-y-5 pb-12 pt-2">
       <AdminHeader
         icon={IconBarChart}
         title={w(lang, "navAdminAnalytics")}

@@ -101,8 +101,42 @@ done, so the boxes cannot read `[x]` — see the eleven `**Unmet:**` rows in
 `BACKLOG.md`. This is the marker doing its job on its first day: the alternative
 was eleven ticks and a caveat in a sentence nobody would find in three weeks.
 
+**Two more the audits found, both after this entry was first drafted.**
+
+`audit-i18n` reported 35 orphaned dictionary keys. Seventeen of those were the
+audit's own bug: `Dashboard.tsx` reads eleven keys as `W[lang].statToday`
+rather than through `w()`, and the scan only knew about `w()` and about keys
+travelling as props. Reporting those would have been the audit accusing the
+codebase of the audit's mistake, which is how an audit gets disabled. With the
+third access pattern added, 18 were real — and eight of those were dead keys
+this session had created itself while splitting the admin screen apart
+(`navAdmin`, `adminSub`, `adminUserId`, `adminClose`, `adminUserBadge`,
+`adminImportModalTitle`, `adminUserViewBanner`, `adminShare`). One of them,
+`adminUserViewBanner`, was a label added and never rendered — the exact defect
+constraint 2 in `CLAUDE.md` was written about, committed the same day the
+constraint was. Those eight are deleted; the remaining ten are R1 prototype
+leftovers, baselined at 10 rather than cleared, because clearing R1 debt during
+R2 is what the one rule forbids. The baseline fails if it is higher than
+reality too, so it cannot be left stale after a cleanup.
+
+`.gitignore` line 20 was `.env*`, which silently swallowed the `.env.example`
+written an hour earlier. The audit layer's declared side and a fresh clone's
+only instructions were both untracked and would have been lost on the next
+machine. `!.env.example` now follows it.
+
 **Also today.** `.gitattributes` now pins line endings, after files written from
 a Linux shell landed as LF in a CRLF working tree — harmless to git, which
 normalises before comparing, but it left the checkout with mixed endings and
 made `git status` in a non-Windows shell report 253 modified files that were
 byte-identical in content.
+
+**Verification, and where it had to be split.** All nine audits pass. The rest
+of `verify` was proven green in two places for the reason `CLAUDE.md` now
+records: this checkout's `node_modules` holds win32-only esbuild and rollup
+binaries, so Vitest and Vite cannot run against it from a Linux shell. The API
+gates ran here — Ruff clean, 292 passed, 6 skipped. The JavaScript gates ran
+against a clean install of the same source: both typecheckers clean, ESLint
+clean, 548 tests across 60 files, 10 core tests. The web spec count was 60
+before the explicit `include` globs and 60 after, which is the evidence that
+making the scoping explicit changed what `verify` can check and not what it
+runs.

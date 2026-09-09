@@ -81,7 +81,7 @@ export function AdminAudit() {
   const hasMore = (page + 1) * PAGE_SIZE < total;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-1 pb-12 pt-2">
+    <div className="w-full space-y-5 pb-12 pt-2">
       <AdminHeader
         icon={IconHistory}
         title={w(lang, "navAdminAudit")}

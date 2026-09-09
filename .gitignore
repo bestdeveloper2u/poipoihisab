@@ -18,3 +18,7 @@ __pycache__/
 *.sqlite3
 .vercel
 .env*
+# ...but the example MUST be committed: scripts/audit-env.mjs reads it as the
+# declared side of the both-directions check, and a fresh clone reads it to
+# know what to set. `.env*` above had been quietly swallowing it.
+!.env.example

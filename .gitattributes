@@ -1,0 +1,26 @@
+# Line endings, pinned.
+#
+# This is a Windows checkout with core.autocrlf on, so HEAD holds LF and the
+# working tree holds CRLF. Files written by a tool running on Linux landed as
+# LF, which git normalises before comparing and therefore does not report — but
+# `git status` from a non-Windows shell then listed 253 modified files that
+# were byte-identical in content, and the checkout was left with two line
+# endings in one tree.
+#
+# `text=auto` makes it deterministic instead of dependent on whose machine
+# wrote the file: LF in the repository, native on checkout.
+* text=auto
+
+# Always LF regardless of platform — these are read by tools, not editors, and
+# a CRLF shebang line makes a script unexecutable on Unix.
+*.sh text eol=lf
+*.mjs text eol=lf
+*.py text eol=lf
+
+# Never touched.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
