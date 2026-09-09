@@ -29,7 +29,7 @@
     "api/index.py": {
       "includeFiles": "apps/api/app/**",
       "maxDuration": 25,
-      "regions": ["icn1"]
+      "regions": ["bom1"]
     }
   },
   "rewrites": [
