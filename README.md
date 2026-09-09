@@ -358,7 +358,25 @@ server {
 
 The codebase includes strict automated test gates:
 
+[GitHub Actions: Verify](https://github.com/bestdeveloper2u/poipoihisab/actions/workflows/verify.yml)
+runs on every push and pull request, and can be started manually. Fresh Ubuntu
+and Windows jobs install locked dependencies, reject generated API contract drift,
+run `pnpm verify`, and build the production web bundle. The workflow uses read-only
+repository permissions and no production secrets; it does not deploy the app.
+
+The optional real-Postgres tests and openpyxl template tests still skip when their
+prerequisites are absent. Google Sheets calls remain mocked: green CI does not
+close the live-workbook checks in `BACKLOG.md`. Branch protection is separate;
+an owner can require both `Verify (ubuntu-24.04)` and `Verify (windows-2022)` checks
+before merging. This change does not alter repository policy or Vercel's deployment
+trigger. For workflow failures, inspect the failed step's log and fix the underlying
+error; do not bypass a gate with `continue-on-error`. A faulty workflow can be
+reverted with a normal reviewed revert commit without changing application data.
+
 ```bash
+# Run the complete local gate from the repository root
+pnpm verify
+
 # Run all web frontend unit & integration tests (Vitest)
 pnpm test:web
 

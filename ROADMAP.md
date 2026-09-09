@@ -97,11 +97,12 @@ superadmin off from the member experience and gives the platform the oversight
 it had no way to provide: an audit trail, role management, cross-user session
 control, taxonomy repair, and a system-health probe.
 
-**R3 — not yet fully scoped**, except for R3.1–R3.3 below, requested during R2:
+**R3 — not yet fully scoped**, except for R3.1–R3.4 below, requested during R2:
 R3.1 after a real workbook showed the export could not populate it, R3.2 after the
 owner asked whether the sheet could hold everything, so that the ledger survives the
 app going away. R3.3 follows that handoff, with the owner's explicit choice of
-one summary per year. Read `BACKLOG.md` at the R2 boundary for the rest.
+one summary per year. R3.4 takes the unblocked CI backlog item on the next-task
+request. Read `BACKLOG.md` at the R2 boundary for the rest.
 
 ## Part 5 — Screen by screen
 
@@ -425,6 +426,24 @@ validation, collision refusal, capacity-before-write and retry without duplicati
 A live disposable Google workbook must also prove new-year totals, charts, dropdowns,
 unchanged old-year totals and identical results on the second sync. Until that round
 trip, this slice is `[!]`, not done.
+
+**R3.4 Continuous integration** · `.github/workflows/verify.yml`
+
+**UI** — GitHub check results, not a product screen. No UI, translations, database
+migration, production deployment or offline mutation is introduced.
+**Does** — run on pushes, pull requests and manual dispatch on fresh Linux and
+Windows runners. Install locked pnpm/uv dependencies, regenerate and compare the
+committed API contracts, run `pnpm verify`, then build the production web bundle.
+Pin action implementations by commit, grant only repository read permission,
+disable persisted checkout credentials, cancel superseded runs, and bound job
+duration. Use mocked external integrations and SQLite; no production secrets.
+**Data** — committed source, `pnpm-lock.yaml`, `apps/api/uv.lock` and the API
+contract. Caches contain downloaded dependencies, not shared `node_modules`.
+**Done** — the workflow passes syntax validation and the first GitHub-hosted run
+passes on both operating systems. Existing optional Postgres and template tests
+remain skipped unless their prerequisites are supplied. Making the checks required
+for merging is a separate owner-controlled repository-policy decision; this slice
+does not change branch protection or gate Vercel deployment.
 
 ## Part 6 — Verification
 
