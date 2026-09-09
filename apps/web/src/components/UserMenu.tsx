@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { t } from "@poipoihisab/core";
 import { w } from "../lib/web-i18n";
 import { useAuthStore } from "../store/auth";
 import { useLangStore } from "../store/lang";
-import { IconShield } from "./icons";
+import { IconHome, IconShield } from "./icons";
 
 /**
  * Header user chip → popover (prototype avwrap @585-592 + handlers
@@ -17,6 +17,7 @@ export function UserMenu() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -93,20 +94,38 @@ export function UserMenu() {
             <p className="truncate text-sm font-bold text-ink">{name}</p>
             {email && <p className="truncate font-en text-xs text-muted">{email}</p>}
           </div>
-          {user?.isSuperadmin && (
-            <button
-              role="menuitem"
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                navigate("/admin");
-              }}
-              className="mt-1 flex w-full items-center gap-2.5 rounded-control px-2 py-2 text-left text-[13px] font-semibold text-emerald transition-colors hover:bg-emerald/10"
-            >
-              <IconShield className="h-4 w-4 shrink-0" />
-              {w(lang, "navAdmin")}
-            </button>
-          )}
+          {/* A superadmin's nav is the admin tree, so the personal screens
+              have no sidebar entry for them. This is the deliberate way in
+              and back out — the routes stay registered, they are just not
+              part of the operator's navigation. */}
+          {user?.isSuperadmin &&
+            (pathname.startsWith("/admin") ? (
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/");
+                }}
+                className="mt-1 flex w-full items-center gap-2.5 rounded-control px-2 py-2 text-left text-[13px] font-semibold text-ink transition-colors hover:bg-surface-2/60"
+              >
+                <IconHome className="h-4 w-4 shrink-0" />
+                {w(lang, "navUserView")}
+              </button>
+            ) : (
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/admin");
+                }}
+                className="mt-1 flex w-full items-center gap-2.5 rounded-control px-2 py-2 text-left text-[13px] font-semibold text-emerald transition-colors hover:bg-emerald/10"
+              >
+                <IconShield className="h-4 w-4 shrink-0" />
+                {w(lang, "adminBackToAdmin")}
+              </button>
+            ))}
           <button
             role="menuitem"
             type="button"

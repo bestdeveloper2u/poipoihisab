@@ -4,6 +4,463 @@
  */
 
 export interface paths {
+    "/api/v1/admin/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin Analytics
+         * @description Platform-wide spending shape, aggregated across every user.
+         *
+         *     Deliberately aggregate-only: this is the one admin screen that reads all
+         *     users' expenses at once, so it returns distributions and totals, never
+         *     individual rows (the per-user inspector already covers that, one
+         *     consciously chosen user at a time).
+         */
+        get: operations["get_admin_analytics_api_v1_admin_analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Audit
+         * @description Read the admin audit trail, newest first.
+         *
+         *     Deliberately read-only: there is no endpoint that edits or deletes a
+         *     trail entry, because a trail an admin can rewrite is not a trail.
+         */
+        get: operations["list_admin_audit_api_v1_admin_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Categories
+         * @description Distinct cat/grp pairs actually present in expenses, with usage.
+         *
+         *     ``expenses.cat`` is free text: no foreign key, no check constraint, and
+         *     the API accepts any 1-80 character string. It is also what the Bengali
+         *     voice parser writes and what every report groups by, so the live
+         *     taxonomy is whatever users and the parser happened to type — "রিক্সা"
+         *     and "রিকশা" are two categories to the database and one to a human. This
+         *     endpoint is how a superadmin sees that drift; ``grp`` is a fixed
+         *     ``ExpenseGroup`` literal at the API layer, so it drifts only for rows
+         *     written before a group was renamed.
+         */
+        get: operations["list_admin_categories_api_v1_admin_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Admin Categories
+         * @description Rename or merge one category into another across ALL users' expenses.
+         *
+         *     The repair tool for taxonomy drift ("রিক্সা" vs "রিকশা" vs "rickshaw"
+         *     all meaning the same thing). It rewrites rows for every user at once, so
+         *     it is audited with the exact from/to pair and the affected row count.
+         */
+        post: operations["merge_admin_categories_api_v1_admin_categories_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/export/users.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Admin Users Csv
+         * @description Stream all registered users as an RFC-4180 CSV with UTF-8 BOM.
+         *
+         *     Reading is not usually audited, but this endpoint exfiltrates the whole
+         *     user table (names, emails, spend) in one request — worth a trail entry.
+         */
+        get: operations["export_admin_users_csv_api_v1_admin_export_users_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/import/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Admin Users
+         * @description Import users from a batch list. Skips duplicates and invalid emails.
+         */
+        post: operations["import_admin_users_api_v1_admin_import_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin Integrations
+         * @description Global integration wiring, as opposed to any one user's settings.
+         *
+         *     ``GET /sheets/status`` answers for the caller; the service account
+         *     itself is deployment-wide config, and whether it is present decides
+         *     whether Sheets sync works for *anybody*.
+         */
+        get: operations["get_admin_integrations_api_v1_admin_integrations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Sessions
+         * @description Live sessions per user across the platform.
+         *
+         *     ``GET /auth/sessions`` only ever shows the caller's own sessions, so
+         *     until now the only way an admin could end someone else's session was to
+         *     suspend the account. This walks the per-user session index instead.
+         *
+         *     The scan is one KV round-trip per user, hence the ``limit``; users with
+         *     no live session are omitted from the response rather than padding it.
+         */
+        get: operations["list_admin_sessions_api_v1_admin_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Platform Stats
+         * @description Return platform-wide summary statistics.
+         */
+        get: operations["get_platform_stats_api_v1_admin_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin System
+         * @description Runtime facts behind the rest of the dashboard.
+         *
+         *     The reason this screen exists: with ``POIPOIHISAB_KV_URL`` unset the app
+         *     silently falls back to per-process ``MemoryKV``. On a serverless deploy
+         *     that means every cold start logs everybody out and resets the
+         *     brute-force counters — a production-breaking condition with no symptom
+         *     anywhere else in the UI.
+         */
+        get: operations["get_admin_system_api_v1_admin_system_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Users
+         * @description Search and list all users with aggregated financial metrics.
+         */
+        get: operations["list_admin_users_api_v1_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Admin Users
+         * @description Bulk permanently delete users, excluding the current admin.
+         *
+         *     The most destructive endpoint in the app: an irreversible cascade over
+         *     an arbitrary id list. It is therefore both rate-limited and audited.
+         */
+        post: operations["bulk_delete_admin_users_api_v1_admin_users_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/bulk-suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Suspend Admin Users
+         * @description Bulk suspend or reactivate users, excluding the current admin.
+         */
+        post: operations["bulk_suspend_admin_users_api_v1_admin_users_bulk_suspend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin User Detail
+         * @description Fetch complete user profile and aggregated metrics.
+         */
+        get: operations["get_admin_user_detail_api_v1_admin_users__user_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Admin User
+         * @description Permanently delete a user and cascade delete their expenses, debts, budgets, and recurring rules.
+         */
+        delete: operations["delete_admin_user_api_v1_admin_users__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/debts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin User Debts
+         * @description Return all debts for a specific user.
+         */
+        get: operations["get_admin_user_debts_api_v1_admin_users__user_id__debts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin User Expenses
+         * @description Return expenses for a specific user.
+         */
+        get: operations["get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin User Recurring
+         * @description Return recurring expense rules for a specific user.
+         */
+        get: operations["get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/revoke-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Admin User Sessions
+         * @description Sign one user out everywhere without suspending their account.
+         *
+         *     The recovery path for a lost or shared device: suspension is the wrong
+         *     tool there, because it also locks the user out of their own data.
+         */
+        post: operations["revoke_admin_user_sessions_api_v1_admin_users__user_id__revoke_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Admin User Role
+         * @description Grant or revoke superadmin on a user.
+         *
+         *     Before this endpoint, ``is_superadmin`` could only be set by editing the
+         *     ``POIPOIHISAB_SUPERADMIN_EMAILS`` env var or writing to the database by
+         *     hand. Two guards apply: an admin cannot demote themselves (that is how
+         *     you lock yourself out with one click), and the platform can never be
+         *     left with zero superadmins.
+         */
+        post: operations["set_admin_user_role_api_v1_admin_users__user_id__role_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspend Admin User
+         * @description Suspend or unsuspend a user. When suspended, all active sessions are revoked immediately.
+         */
+        post: operations["suspend_admin_user_api_v1_admin_users__user_id__suspend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -696,130 +1153,575 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Return platform-wide summary statistics. */
-        get: operations["get_platform_stats_api_v1_admin_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search and list all users with aggregated financial metrics. */
-        get: operations["list_admin_users_api_v1_admin_users_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Fetch complete user profile and aggregated metrics. */
-        get: operations["get_admin_user_detail_api_v1_admin_users__user_id__get"];
-        put?: never;
-        post?: never;
-        /** Permanently delete a user */
-        delete: operations["delete_admin_user"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{user_id}/expenses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Return expenses for a specific user. */
-        get: operations["get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{user_id}/debts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Return all debts for a specific user. */
-        get: operations["get_admin_user_debts_api_v1_admin_users__user_id__debts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{user_id}/recurring": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Return recurring expense rules for a specific user. */
-        get: operations["get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{user_id}/suspend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Suspend or reactivate a user */
-        post: operations["suspend_admin_user"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdminAnalyticsOut
+         * @description Platform-wide spending analytics (all users aggregated).
+         */
+        AdminAnalyticsOut: {
+            /** Bycategory */
+            byCategory: components["schemas"]["AdminSliceOut"][];
+            /** Bygroup */
+            byGroup: components["schemas"]["AdminSliceOut"][];
+            /** Bypayment */
+            byPayment: components["schemas"]["AdminSliceOut"][];
+            /**
+             * Debtborrow
+             * @default 0.00
+             */
+            debtBorrow: string;
+            /**
+             * Debtlend
+             * @default 0.00
+             */
+            debtLend: string;
+            /** Topusers */
+            topUsers: components["schemas"]["AdminTopUserOut"][];
+            /** Trend */
+            trend: components["schemas"]["AdminTrendPointOut"][];
+        };
+        /**
+         * AdminAuditItemOut
+         * @description One row of the admin audit trail.
+         */
+        AdminAuditItemOut: {
+            /** Action */
+            action: string;
+            /** Actoremail */
+            actorEmail?: string | null;
+            /** Actorid */
+            actorId?: string | null;
+            /**
+             * Affected
+             * @default 1
+             */
+            affected: number;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Detail */
+            detail?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Ip */
+            ip?: string | null;
+            /** Targetid */
+            targetId?: string | null;
+            /** Targetlabel */
+            targetLabel?: string | null;
+            /** Targettype */
+            targetType?: string | null;
+        };
+        /**
+         * AdminAuditListOut
+         * @description Paginated slice of the audit trail.
+         */
+        AdminAuditListOut: {
+            /** Actions */
+            actions?: string[];
+            /** Items */
+            items: components["schemas"]["AdminAuditItemOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminBulkActionOut
+         * @description Result of an admin bulk action.
+         */
+        AdminBulkActionOut: {
+            /** Affectedcount */
+            affectedCount: number;
+            /** Message */
+            message: string;
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+        };
+        /**
+         * AdminBulkUserDeleteIn
+         * @description Payload to bulk permanently delete users.
+         */
+        AdminBulkUserDeleteIn: {
+            /** Userids */
+            userIds: string[];
+        };
+        /**
+         * AdminBulkUserSuspendIn
+         * @description Payload to bulk suspend or unsuspend users.
+         */
+        AdminBulkUserSuspendIn: {
+            /**
+             * Suspended
+             * @default true
+             */
+            suspended: boolean;
+            /** Userids */
+            userIds: string[];
+        };
+        /**
+         * AdminCategoryItemOut
+         * @description One distinct category/group pair with platform-wide usage.
+         */
+        AdminCategoryItemOut: {
+            /** Amount */
+            amount: string;
+            /** Cat */
+            cat: string;
+            /** Count */
+            count: number;
+            /** Grp */
+            grp: string;
+            /** Usercount */
+            userCount: number;
+        };
+        /**
+         * AdminCategoryListOut
+         * @description Free-text expense taxonomy as it actually exists in the data.
+         */
+        AdminCategoryListOut: {
+            /** Items */
+            items: components["schemas"]["AdminCategoryItemOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminCategoryMergeIn
+         * @description Rename or merge a category across every user's expenses.
+         */
+        AdminCategoryMergeIn: {
+            /** Fromcat */
+            fromCat: string;
+            /** Tocat */
+            toCat: string;
+            /** Togrp */
+            toGrp?: string | null;
+        };
+        /**
+         * AdminIntegrationsOut
+         * @description Global integration wiring (not any one user's settings).
+         */
+        AdminIntegrationsOut: {
+            /** Sheetsconfigured */
+            sheetsConfigured: boolean;
+            /** Sheetsdetail */
+            sheetsDetail?: string | null;
+            /** Sheetssaemail */
+            sheetsSaEmail?: string | null;
+            /** Sheetssafile */
+            sheetsSaFile?: string | null;
+            /** Userstotal */
+            usersTotal: number;
+            /**
+             * Voiceparser
+             * @default on-device
+             */
+            voiceParser: string;
+        };
+        /**
+         * AdminPlatformStatsOut
+         * @description Global system-wide statistics for superadmins.
+         */
+        AdminPlatformStatsOut: {
+            /** Activerecurring */
+            activeRecurring: number;
+            /**
+             * Activeusers30D
+             * @default 0
+             */
+            activeUsers30d: number;
+            /**
+             * Monthamount
+             * @default 0.00
+             */
+            monthAmount: string;
+            /**
+             * Newusers30D
+             * @default 0
+             */
+            newUsers30d: number;
+            /**
+             * Superadmincount
+             * @default 0
+             */
+            superadminCount: number;
+            /**
+             * Suspendedusers
+             * @default 0
+             */
+            suspendedUsers: number;
+            /** Totalamount */
+            totalAmount: string;
+            /** Totaldebts */
+            totalDebts: number;
+            /** Totalexpenses */
+            totalExpenses: number;
+            /** Totalusers */
+            totalUsers: number;
+        };
+        /**
+         * AdminRevokeSessionsOut
+         * @description Result of revoking one user's sessions.
+         */
+        AdminRevokeSessionsOut: {
+            /** Message */
+            message: string;
+            /** Revoked */
+            revoked: number;
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+        };
+        /**
+         * AdminSessionUserOut
+         * @description Live-session summary for one user.
+         */
+        AdminSessionUserOut: {
+            /** Email */
+            email: string | null;
+            /** Issuperadmin */
+            isSuperadmin: boolean;
+            /** Issuspended */
+            isSuspended: boolean;
+            /**
+             * Maxexpiresin
+             * @default 0
+             */
+            maxExpiresIn: number;
+            /** Name */
+            name: string;
+            /** Sessioncount */
+            sessionCount: number;
+            /**
+             * Userid
+             * Format: uuid
+             */
+            userId: string;
+        };
+        /**
+         * AdminSessionsOut
+         * @description Live sessions across the platform, users with none omitted.
+         */
+        AdminSessionsOut: {
+            /** Items */
+            items: components["schemas"]["AdminSessionUserOut"][];
+            /** Kvbackend */
+            kvBackend: string;
+            /** Kvephemeral */
+            kvEphemeral: boolean;
+            /** Totalsessions */
+            totalSessions: number;
+            /** Usersscanned */
+            usersScanned: number;
+        };
+        /**
+         * AdminSliceOut
+         * @description One labelled bucket in an analytics breakdown.
+         */
+        AdminSliceOut: {
+            /** Amount */
+            amount: string;
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+        };
+        /**
+         * AdminSystemOut
+         * @description Runtime facts a superadmin needs to trust the rest of the dashboard.
+         */
+        AdminSystemOut: {
+            /** Accessttl */
+            accessTtl: number;
+            /** Audittablepresent */
+            auditTablePresent: boolean;
+            /** Authratelimit */
+            authRateLimit: number;
+            /** Corsorigins */
+            corsOrigins: string[];
+            /** Dbdialect */
+            dbDialect: string;
+            /** Dberror */
+            dbError?: string | null;
+            /** Dbok */
+            dbOk: boolean;
+            /** Env */
+            env: string;
+            /** Kvbackend */
+            kvBackend: string;
+            /** Kvconfigured */
+            kvConfigured: boolean;
+            /** Kvephemeral */
+            kvEphemeral: boolean;
+            /** Migrationcurrent */
+            migrationCurrent?: string | null;
+            /** Refreshcookiesecure */
+            refreshCookieSecure: boolean;
+            /** Refreshttl */
+            refreshTtl: number;
+            /**
+             * Servertime
+             * Format: date-time
+             */
+            serverTime: string;
+            /** Superadminemails */
+            superadminEmails: string[];
+            /** Version */
+            version: string;
+            /** Warnings */
+            warnings?: string[];
+        };
+        /**
+         * AdminTopUserOut
+         * @description One row of the top-spenders table.
+         */
+        AdminTopUserOut: {
+            /** Email */
+            email: string | null;
+            /** Expensecount */
+            expenseCount: number;
+            /** Name */
+            name: string;
+            /** Totalexpense */
+            totalExpense: string;
+            /**
+             * Userid
+             * Format: uuid
+             */
+            userId: string;
+        };
+        /**
+         * AdminTrendPointOut
+         * @description One month in a platform trend series.
+         */
+        AdminTrendPointOut: {
+            /** Amount */
+            amount: string;
+            /** Expenses */
+            expenses: number;
+            /** Month */
+            month: string;
+            /** Newusers */
+            newUsers: number;
+        };
+        /**
+         * AdminUserActionOut
+         * @description Result of an admin action on a user.
+         */
+        AdminUserActionOut: {
+            /** Message */
+            message: string;
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+        };
+        /**
+         * AdminUserBudgetOut
+         * @description User budget configuration.
+         */
+        AdminUserBudgetOut: {
+            /** Cats */
+            cats: {
+                [key: string]: string;
+            };
+            /** Total */
+            total: string;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * AdminUserDebtsOut
+         * @description List of debts for a specific user.
+         */
+        AdminUserDebtsOut: {
+            /** Items */
+            items: components["schemas"]["DebtOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminUserDetailOut
+         * @description Comprehensive user data summary for superadmins.
+         */
+        AdminUserDetailOut: {
+            budget?: components["schemas"]["AdminUserBudgetOut"] | null;
+            /**
+             * Currentmonthexpense
+             * @default 0.00
+             */
+            currentMonthExpense: string;
+            /**
+             * Netdebt
+             * @default 0.00
+             */
+            netDebt: string;
+            /**
+             * Totalborrow
+             * @default 0.00
+             */
+            totalBorrow: string;
+            /**
+             * Totallend
+             * @default 0.00
+             */
+            totalLend: string;
+            user: components["schemas"]["AdminUserItemOut"];
+        };
+        /**
+         * AdminUserExpensesOut
+         * @description List of expenses for a specific user.
+         */
+        AdminUserExpensesOut: {
+            /** Items */
+            items: components["schemas"]["ExpenseOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminUserImportIn
+         * @description Payload to import a batch of users.
+         */
+        AdminUserImportIn: {
+            /** Users */
+            users: components["schemas"]["AdminUserImportRow"][];
+        };
+        /**
+         * AdminUserImportOut
+         * @description Result of an admin user import batch.
+         */
+        AdminUserImportOut: {
+            /** Createdcount */
+            createdCount: number;
+            /** Errors */
+            errors?: string[];
+            /** Skippedcount */
+            skippedCount: number;
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+        };
+        /**
+         * AdminUserImportRow
+         * @description Single user entry to import.
+         */
+        AdminUserImportRow: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /** Password */
+            password?: string | null;
+        };
+        /**
+         * AdminUserItemOut
+         * @description User row in the admin users list.
+         */
+        AdminUserItemOut: {
+            /**
+             * Budgetcount
+             * @default 0
+             */
+            budgetCount: number;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Debtcount
+             * @default 0
+             */
+            debtCount: number;
+            /** Email */
+            email: string | null;
+            /**
+             * Expensecount
+             * @default 0
+             */
+            expenseCount: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Issuperadmin */
+            isSuperadmin: boolean;
+            /**
+             * Issuspended
+             * @default false
+             */
+            isSuspended: boolean;
+            /** Lang */
+            lang: string;
+            /** Name */
+            name: string;
+            /**
+             * Recurringcount
+             * @default 0
+             */
+            recurringCount: number;
+            /** Theme */
+            theme: string;
+            /**
+             * Totalexpense
+             * @default 0.00
+             */
+            totalExpense: string;
+        };
+        /**
+         * AdminUserListOut
+         * @description List of users with pagination total.
+         */
+        AdminUserListOut: {
+            /** Items */
+            items: components["schemas"]["AdminUserItemOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminUserRecurringOut
+         * @description List of recurring rules for a specific user.
+         */
+        AdminUserRecurringOut: {
+            /** Items */
+            items: components["schemas"]["RecurringOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminUserRoleIn
+         * @description Payload to grant or revoke superadmin on a user.
+         */
+        AdminUserRoleIn: {
+            /** Superadmin */
+            superadmin: boolean;
+        };
+        /**
+         * AdminUserSuspendIn
+         * @description Payload to suspend or unsuspend a user.
+         */
+        AdminUserSuspendIn: {
+            /**
+             * Suspended
+             * @default true
+             */
+            suspended: boolean;
+        };
         /**
          * AuthOut
          * @description Login/register/refresh response: user + token pair.
@@ -1543,8 +2445,6 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Name */
-            name: string;
             /**
              * Issuperadmin
              * @default false
@@ -1555,6 +2455,8 @@ export interface components {
              * @default false
              */
             isSuspended: boolean;
+            /** Name */
+            name: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1599,188 +2501,6 @@ export interface components {
             /** Year */
             year: number;
         };
-        /**
-         * AdminPlatformStatsOut
-         * @description Global system-wide statistics for superadmins.
-         */
-        AdminPlatformStatsOut: {
-            /** Activerecurring */
-            activeRecurring: number;
-            /** Totalamount */
-            totalAmount: string;
-            /** Totaldebts */
-            totalDebts: number;
-            /** Totalexpenses */
-            totalExpenses: number;
-            /** Totalusers */
-            totalUsers: number;
-        };
-        /**
-         * AdminUserItemOut
-         * @description User row in the admin users list.
-         */
-        AdminUserItemOut: {
-            /**
-             * Budgetcount
-             * @default 0
-             */
-            budgetCount: number;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /**
-             * Debtcount
-             * @default 0
-             */
-            debtCount: number;
-            /** Email */
-            email: string | null;
-            /**
-             * Expensecount
-             * @default 0
-             */
-            expenseCount: number;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Issuperadmin */
-            isSuperadmin: boolean;
-            /** Lang */
-            lang: string;
-            /** Name */
-            name: string;
-            /**
-             * Recurringcount
-             * @default 0
-             */
-            recurringCount: number;
-            /** Theme */
-            theme: string;
-            /**
-             * Totalexpense
-             * @default 0.00
-             */
-            totalExpense: string;
-            /**
-             * Issuspended
-             * @default false
-             */
-            isSuspended: boolean;
-        };
-        /**
-         * AdminUserListOut
-         * @description List of users with pagination total.
-         */
-        AdminUserListOut: {
-            /** Items */
-            items: components["schemas"]["AdminUserItemOut"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * AdminUserBudgetOut
-         * @description User budget configuration.
-         */
-        AdminUserBudgetOut: {
-            /** Cats */
-            cats: {
-                [key: string]: string;
-            };
-            /** Total */
-            total: string;
-            /**
-             * Updatedat
-             * @default null
-             */
-            updatedAt: string | null;
-        };
-        /**
-         * AdminUserDetailOut
-         * @description Comprehensive user data summary for superadmins.
-         */
-        AdminUserDetailOut: {
-            /** @default null */
-            budget: components["schemas"]["AdminUserBudgetOut"] | null;
-            /**
-             * Currentmonthexpense
-             * @default 0.00
-             */
-            currentMonthExpense: string;
-            /**
-             * Netdebt
-             * @default 0.00
-             */
-            netDebt: string;
-            /**
-             * Totalborrow
-             * @default 0.00
-             */
-            totalBorrow: string;
-            /**
-             * Totallend
-             * @default 0.00
-             */
-            totalLend: string;
-            user: components["schemas"]["AdminUserItemOut"];
-        };
-        /**
-         * AdminUserExpensesOut
-         * @description List of expenses for a specific user.
-         */
-        AdminUserExpensesOut: {
-            /** Items */
-            items: components["schemas"]["ExpenseOut"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * AdminUserDebtsOut
-         * @description List of debts for a specific user.
-         */
-        AdminUserDebtsOut: {
-            /** Items */
-            items: components["schemas"]["DebtOut"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * AdminUserRecurringOut
-         * @description List of recurring rules for a specific user.
-         */
-        AdminUserRecurringOut: {
-            /** Items */
-            items: components["schemas"]["RecurringOut"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * AdminUserSuspendIn
-         * @description Payload to suspend or unsuspend a user.
-         */
-        AdminUserSuspendIn: {
-            /**
-             * Suspended
-             * @default true
-             */
-            suspended: boolean;
-        };
-        /**
-         * AdminUserActionOut
-         * @description Result of an admin action on a user.
-         */
-        AdminUserActionOut: {
-            /**
-             * Success
-             * @default true
-             */
-            success: boolean;
-            /** Message */
-            message: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -1790,6 +2510,629 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_admin_analytics_api_v1_admin_analytics_get: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnalyticsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_audit_api_v1_admin_audit_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by exact action verb */
+                action?: string | null;
+                /** @description Search actor, target or detail */
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_categories_api_v1_admin_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCategoryListOut"];
+                };
+            };
+        };
+    };
+    merge_admin_categories_api_v1_admin_categories_merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryMergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBulkActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_admin_users_csv_api_v1_admin_export_users_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    import_admin_users_api_v1_admin_import_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserImportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_integrations_api_v1_admin_integrations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminIntegrationsOut"];
+                };
+            };
+        };
+    };
+    list_admin_sessions_api_v1_admin_sessions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_platform_stats_api_v1_admin_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlatformStatsOut"];
+                };
+            };
+        };
+    };
+    get_admin_system_api_v1_admin_system_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSystemOut"];
+                };
+            };
+        };
+    };
+    list_admin_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: {
+                /** @description Search by name, email, or user ID */
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_admin_users_api_v1_admin_users_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBulkUserDeleteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBulkActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_suspend_admin_users_api_v1_admin_users_bulk_suspend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBulkUserSuspendIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBulkActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_user_detail_api_v1_admin_users__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_admin_user_api_v1_admin_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_user_debts_api_v1_admin_users__user_id__debts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDebtsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserExpensesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserRecurringOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_admin_user_sessions_api_v1_admin_users__user_id__revoke_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRevokeSessionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_admin_user_role_api_v1_admin_users__user_id__role_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserRoleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suspend_admin_user_api_v1_admin_users__user_id__suspend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserSuspendIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -2841,235 +4184,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Healthz"];
                 };
-            };
-        };
-    };
-    get_platform_stats_api_v1_admin_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminPlatformStatsOut"];
-                };
-            };
-        };
-    };
-    list_admin_users_api_v1_admin_users_get: {
-        parameters: {
-            query?: {
-                q?: string | null;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserListOut"];
-                };
-            };
-        };
-    };
-    get_admin_user_detail_api_v1_admin_users__user_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserDetailOut"];
-                };
-            };
-        };
-    };
-    delete_admin_user: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserActionOut"];
-                };
-            };
-            /** @description Bad Request (e.g. self-delete) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Superadmin access required */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description User not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserExpensesOut"];
-                };
-            };
-        };
-    };
-    get_admin_user_debts_api_v1_admin_users__user_id__debts_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserDebtsOut"];
-                };
-            };
-        };
-    };
-    get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserRecurringOut"];
-                };
-            };
-        };
-    };
-    suspend_admin_user: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminUserSuspendIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminUserActionOut"];
-                };
-            };
-            /** @description Bad Request (e.g. self-suspend) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Superadmin access required */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description User not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

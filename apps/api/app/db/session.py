@@ -25,14 +25,24 @@ def get_engine_and_sessionmaker() -> tuple[AsyncEngine, async_sessionmaker[Async
     if _engine is None or _sessionmaker is None:
         settings = get_settings()
         connect_args: dict = {}
+        engine_kwargs: dict = {}
         if "pooler.supabase.com" in settings.database_url or "pgbouncer=true" in settings.database_url:
             # Transaction-mode poolers (pgbouncer/Supabase pooler) do not support
             # asyncpg prepared statements — disable the driver-level cache.
             connect_args["statement_cache_size"] = 0
+        # Serverless (Vercel): each invocation is a fresh process; persistent
+        # connection pools waste cold-start time and break across frozen lambdas.
+        # NullPool creates a connection per request and discards it immediately —
+        # the external Supabase pooler already handles real pooling.
+        if settings.env.lower() in {"prod", "production"}:
+            from sqlalchemy.pool import NullPool
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            engine_kwargs["pool_pre_ping"] = True
         _engine = create_async_engine(
             settings.database_url,
-            pool_pre_ping=True,
             connect_args=connect_args,
+            **engine_kwargs,
         )
         _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine, _sessionmaker
@@ -61,6 +71,13 @@ async def ensure_schema_ready(engine: AsyncEngine) -> None:
             sync_conn.execute(
                 text("ALTER TABLE profiles ADD COLUMN is_suspended BOOLEAN NOT NULL DEFAULT FALSE")
             )
+        # migration 0007 — the admin audit trail. Created lazily for the same
+        # reason as the columns above: a superadmin must never be able to
+        # suspend or bulk-delete on a deploy where the trail table is missing.
+        if not insp.has_table("admin_audit_log"):
+            from app.models.audit import AdminAuditLog
+
+            AdminAuditLog.__table__.create(sync_conn, checkfirst=True)
 
     try:
         async with engine.begin() as conn:
@@ -85,9 +102,7 @@ async def get_db() -> AsyncIterator[AsyncSession]:
 
     Rollback on error, always close.
     """
-    engine, sessionmaker = get_engine_and_sessionmaker()
-    if not _schema_ready:
-        await ensure_schema_ready(engine)
+    _, sessionmaker = get_engine_and_sessionmaker()
     session = sessionmaker()
     try:
         yield session

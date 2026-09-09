@@ -2,9 +2,12 @@ import { lazy, Suspense } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { AppShell } from "./components/AppShell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { IconShield } from "./components/icons";
 import { OutboxAutoFlush } from "./lib/outbox";
 import { RecurringAutoRun } from "./lib/recurringRun";
+import { w } from "./lib/web-i18n";
 import { useAuthStore } from "./store/auth";
+import { useLangStore } from "./store/lang";
 
 /**
  * Route-level code splitting (T15.1a): every page is a lazy chunk so the
@@ -35,11 +38,47 @@ const Recurring = lazy(() =>
 const Report = lazy(() =>
   import("./screens/Report").then((m) => ({ default: m.Report })),
 );
-const Admin = lazy(() =>
-  import("./screens/Admin").then((m) => ({ default: m.Admin })),
-);
 const Settings = lazy(() =>
   import("./screens/Settings").then((m) => ({ default: m.Settings })),
+);
+
+/*
+ * Admin chunks (superadmin role split, 2026-09-09). Each page is its own
+ * lazy chunk, so a member's bundle never downloads the admin dashboard —
+ * before the split, the single Admin screen was ~1700 lines in one chunk.
+ */
+const AdminOverview = lazy(() =>
+  import("./screens/admin/AdminOverview").then((m) => ({ default: m.AdminOverview })),
+);
+const AdminUsers = lazy(() =>
+  import("./screens/admin/AdminUsers").then((m) => ({ default: m.AdminUsers })),
+);
+const AdminUserDetail = lazy(() =>
+  import("./screens/admin/AdminUserDetail").then((m) => ({ default: m.AdminUserDetail })),
+);
+const AdminAnalytics = lazy(() =>
+  import("./screens/admin/AdminAnalytics").then((m) => ({ default: m.AdminAnalytics })),
+);
+const AdminCategories = lazy(() =>
+  import("./screens/admin/AdminCategories").then((m) => ({ default: m.AdminCategories })),
+);
+const AdminData = lazy(() =>
+  import("./screens/admin/AdminData").then((m) => ({ default: m.AdminData })),
+);
+const AdminAudit = lazy(() =>
+  import("./screens/admin/AdminAudit").then((m) => ({ default: m.AdminAudit })),
+);
+const AdminRoles = lazy(() =>
+  import("./screens/admin/AdminRoles").then((m) => ({ default: m.AdminRoles })),
+);
+const AdminSecurity = lazy(() =>
+  import("./screens/admin/AdminSecurity").then((m) => ({ default: m.AdminSecurity })),
+);
+const AdminSystem = lazy(() =>
+  import("./screens/admin/AdminSystem").then((m) => ({ default: m.AdminSystem })),
+);
+const AdminIntegrations = lazy(() =>
+  import("./screens/admin/AdminIntegrations").then((m) => ({ default: m.AdminIntegrations })),
 );
 
 /** Themed Suspense fallback shown while a lazy route chunk is downloading. */
@@ -97,6 +136,41 @@ function RequireAuth() {
 }
 
 /**
+ * Gate for /admin/*. The API enforces this too (every admin endpoint
+ * carries SuperAdminDep and answers 403) — this only spares a member the
+ * download of an admin chunk and a screenful of failed requests.
+ */
+function RequireSuperadmin() {
+  const lang = useLangStore((s) => s.lang);
+  const user = useAuthStore((s) => s.user);
+
+  if (!user) return null; // RequireAuth above is still resolving.
+  if (!user.isSuperadmin) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger/10 text-danger">
+          <IconShield className="h-8 w-8" />
+        </div>
+        <h1 className="mt-4 text-xl font-bold text-ink">{w(lang, "adminAccessDenied")}</h1>
+        <p className="mt-1 text-sm text-muted">{w(lang, "adminAccessDeniedHint")}</p>
+      </div>
+    );
+  }
+  return <Outlet />;
+}
+
+/**
+ * Landing route. Owner 2026-09-09: a superadmin keeps no hisab, so the
+ * personal dashboard is not their home — /admin is. The dashboard itself
+ * stays reachable through UserMenu's user-view item.
+ */
+function HomeRoute() {
+  const user = useAuthStore((s) => s.user);
+  if (user?.isSuperadmin) return <Navigate to="/admin" replace />;
+  return <Dashboard />;
+}
+
+/**
  * Route tree. BrowserRouter is provided once in main.tsx so that every
  * component here stays MemoryRouter-compatible for tests.
  */
@@ -110,15 +184,33 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
-              <Route path="/" element={<Dashboard />} />
+              {/* Member screens. Registered for every authed user: a
+                  superadmin reaches them via UserMenu → user view, they are
+                  simply absent from the admin navigation. */}
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/month" element={<Month />} />
               <Route path="/report" element={<Report />} />
               <Route path="/debts" element={<Debts />} />
               <Route path="/recurring" element={<Recurring />} />
               <Route path="/budget" element={<Budget />} />
-              <Route path="/admin" element={<Admin />} />
+              {/* Shared: a superadmin still owns a profile, password and
+                  language, so settings is not part of the split. */}
               <Route path="/settings" element={<Settings />} />
+
+              <Route path="/admin" element={<RequireSuperadmin />}>
+                <Route index element={<AdminOverview />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="users/:userId" element={<AdminUserDetail />} />
+                <Route path="analytics" element={<AdminAnalytics />} />
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="data" element={<AdminData />} />
+                <Route path="audit" element={<AdminAudit />} />
+                <Route path="roles" element={<AdminRoles />} />
+                <Route path="security" element={<AdminSecurity />} />
+                <Route path="system" element={<AdminSystem />} />
+                <Route path="integrations" element={<AdminIntegrations />} />
+              </Route>
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,6 +1,1179 @@
 {
   "components": {
     "schemas": {
+      "AdminAnalyticsOut": {
+        "description": "Platform-wide spending analytics (all users aggregated).",
+        "properties": {
+          "byCategory": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSliceOut"
+            },
+            "title": "Bycategory",
+            "type": "array"
+          },
+          "byGroup": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSliceOut"
+            },
+            "title": "Bygroup",
+            "type": "array"
+          },
+          "byPayment": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSliceOut"
+            },
+            "title": "Bypayment",
+            "type": "array"
+          },
+          "debtBorrow": {
+            "default": "0.00",
+            "title": "Debtborrow",
+            "type": "string"
+          },
+          "debtLend": {
+            "default": "0.00",
+            "title": "Debtlend",
+            "type": "string"
+          },
+          "topUsers": {
+            "items": {
+              "$ref": "#/components/schemas/AdminTopUserOut"
+            },
+            "title": "Topusers",
+            "type": "array"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/AdminTrendPointOut"
+            },
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "byGroup",
+          "byCategory",
+          "byPayment",
+          "trend",
+          "topUsers"
+        ],
+        "title": "AdminAnalyticsOut",
+        "type": "object"
+      },
+      "AdminAuditItemOut": {
+        "description": "One row of the admin audit trail.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actorEmail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actoremail"
+          },
+          "actorId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actorid"
+          },
+          "affected": {
+            "default": 1,
+            "title": "Affected",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid"
+          },
+          "targetLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetlabel"
+          },
+          "targetType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targettype"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "createdAt"
+        ],
+        "title": "AdminAuditItemOut",
+        "type": "object"
+      },
+      "AdminAuditListOut": {
+        "description": "Paginated slice of the audit trail.",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminAuditItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminAuditListOut",
+        "type": "object"
+      },
+      "AdminBulkActionOut": {
+        "description": "Result of an admin bulk action.",
+        "properties": {
+          "affectedCount": {
+            "title": "Affectedcount",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "affectedCount",
+          "message"
+        ],
+        "title": "AdminBulkActionOut",
+        "type": "object"
+      },
+      "AdminBulkUserDeleteIn": {
+        "description": "Payload to bulk permanently delete users.",
+        "properties": {
+          "userIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Userids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds"
+        ],
+        "title": "AdminBulkUserDeleteIn",
+        "type": "object"
+      },
+      "AdminBulkUserSuspendIn": {
+        "description": "Payload to bulk suspend or unsuspend users.",
+        "properties": {
+          "suspended": {
+            "default": true,
+            "title": "Suspended",
+            "type": "boolean"
+          },
+          "userIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Userids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds"
+        ],
+        "title": "AdminBulkUserSuspendIn",
+        "type": "object"
+      },
+      "AdminCategoryItemOut": {
+        "description": "One distinct category/group pair with platform-wide usage.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "cat": {
+            "title": "Cat",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "grp": {
+            "title": "Grp",
+            "type": "string"
+          },
+          "userCount": {
+            "title": "Usercount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cat",
+          "grp",
+          "count",
+          "amount",
+          "userCount"
+        ],
+        "title": "AdminCategoryItemOut",
+        "type": "object"
+      },
+      "AdminCategoryListOut": {
+        "description": "Free-text expense taxonomy as it actually exists in the data.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCategoryItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminCategoryListOut",
+        "type": "object"
+      },
+      "AdminCategoryMergeIn": {
+        "description": "Rename or merge a category across every user's expenses.",
+        "properties": {
+          "fromCat": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Fromcat",
+            "type": "string"
+          },
+          "toCat": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Tocat",
+            "type": "string"
+          },
+          "toGrp": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Togrp"
+          }
+        },
+        "required": [
+          "fromCat",
+          "toCat"
+        ],
+        "title": "AdminCategoryMergeIn",
+        "type": "object"
+      },
+      "AdminIntegrationsOut": {
+        "description": "Global integration wiring (not any one user's settings).",
+        "properties": {
+          "sheetsConfigured": {
+            "title": "Sheetsconfigured",
+            "type": "boolean"
+          },
+          "sheetsDetail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheetsdetail"
+          },
+          "sheetsSaEmail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheetssaemail"
+          },
+          "sheetsSaFile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheetssafile"
+          },
+          "usersTotal": {
+            "title": "Userstotal",
+            "type": "integer"
+          },
+          "voiceParser": {
+            "default": "on-device",
+            "title": "Voiceparser",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sheetsConfigured",
+          "usersTotal"
+        ],
+        "title": "AdminIntegrationsOut",
+        "type": "object"
+      },
+      "AdminPlatformStatsOut": {
+        "description": "Global system-wide statistics for superadmins.",
+        "properties": {
+          "activeRecurring": {
+            "title": "Activerecurring",
+            "type": "integer"
+          },
+          "activeUsers30d": {
+            "default": 0,
+            "title": "Activeusers30D",
+            "type": "integer"
+          },
+          "monthAmount": {
+            "default": "0.00",
+            "title": "Monthamount",
+            "type": "string"
+          },
+          "newUsers30d": {
+            "default": 0,
+            "title": "Newusers30D",
+            "type": "integer"
+          },
+          "superadminCount": {
+            "default": 0,
+            "title": "Superadmincount",
+            "type": "integer"
+          },
+          "suspendedUsers": {
+            "default": 0,
+            "title": "Suspendedusers",
+            "type": "integer"
+          },
+          "totalAmount": {
+            "title": "Totalamount",
+            "type": "string"
+          },
+          "totalDebts": {
+            "title": "Totaldebts",
+            "type": "integer"
+          },
+          "totalExpenses": {
+            "title": "Totalexpenses",
+            "type": "integer"
+          },
+          "totalUsers": {
+            "title": "Totalusers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "totalUsers",
+          "totalExpenses",
+          "totalAmount",
+          "totalDebts",
+          "activeRecurring"
+        ],
+        "title": "AdminPlatformStatsOut",
+        "type": "object"
+      },
+      "AdminRevokeSessionsOut": {
+        "description": "Result of revoking one user's sessions.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "revoked": {
+            "title": "Revoked",
+            "type": "integer"
+          },
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revoked",
+          "message"
+        ],
+        "title": "AdminRevokeSessionsOut",
+        "type": "object"
+      },
+      "AdminSessionUserOut": {
+        "description": "Live-session summary for one user.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "isSuperadmin": {
+            "title": "Issuperadmin",
+            "type": "boolean"
+          },
+          "isSuspended": {
+            "title": "Issuspended",
+            "type": "boolean"
+          },
+          "maxExpiresIn": {
+            "default": 0,
+            "title": "Maxexpiresin",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sessionCount": {
+            "title": "Sessioncount",
+            "type": "integer"
+          },
+          "userId": {
+            "format": "uuid",
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "email",
+          "isSuperadmin",
+          "isSuspended",
+          "sessionCount"
+        ],
+        "title": "AdminSessionUserOut",
+        "type": "object"
+      },
+      "AdminSessionsOut": {
+        "description": "Live sessions across the platform, users with none omitted.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSessionUserOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kvBackend": {
+            "title": "Kvbackend",
+            "type": "string"
+          },
+          "kvEphemeral": {
+            "title": "Kvephemeral",
+            "type": "boolean"
+          },
+          "totalSessions": {
+            "title": "Totalsessions",
+            "type": "integer"
+          },
+          "usersScanned": {
+            "title": "Usersscanned",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "totalSessions",
+          "usersScanned",
+          "kvBackend",
+          "kvEphemeral"
+        ],
+        "title": "AdminSessionsOut",
+        "type": "object"
+      },
+      "AdminSliceOut": {
+        "description": "One labelled bucket in an analytics breakdown.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "count",
+          "amount"
+        ],
+        "title": "AdminSliceOut",
+        "type": "object"
+      },
+      "AdminSystemOut": {
+        "description": "Runtime facts a superadmin needs to trust the rest of the dashboard.",
+        "properties": {
+          "accessTtl": {
+            "title": "Accessttl",
+            "type": "integer"
+          },
+          "auditTablePresent": {
+            "title": "Audittablepresent",
+            "type": "boolean"
+          },
+          "authRateLimit": {
+            "title": "Authratelimit",
+            "type": "integer"
+          },
+          "corsOrigins": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Corsorigins",
+            "type": "array"
+          },
+          "dbDialect": {
+            "title": "Dbdialect",
+            "type": "string"
+          },
+          "dbError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dberror"
+          },
+          "dbOk": {
+            "title": "Dbok",
+            "type": "boolean"
+          },
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "kvBackend": {
+            "title": "Kvbackend",
+            "type": "string"
+          },
+          "kvConfigured": {
+            "title": "Kvconfigured",
+            "type": "boolean"
+          },
+          "kvEphemeral": {
+            "title": "Kvephemeral",
+            "type": "boolean"
+          },
+          "migrationCurrent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migrationcurrent"
+          },
+          "refreshCookieSecure": {
+            "title": "Refreshcookiesecure",
+            "type": "boolean"
+          },
+          "refreshTtl": {
+            "title": "Refreshttl",
+            "type": "integer"
+          },
+          "serverTime": {
+            "format": "date-time",
+            "title": "Servertime",
+            "type": "string"
+          },
+          "superadminEmails": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Superadminemails",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "env",
+          "version",
+          "dbDialect",
+          "dbOk",
+          "kvBackend",
+          "kvEphemeral",
+          "kvConfigured",
+          "auditTablePresent",
+          "corsOrigins",
+          "superadminEmails",
+          "refreshCookieSecure",
+          "accessTtl",
+          "refreshTtl",
+          "authRateLimit",
+          "serverTime"
+        ],
+        "title": "AdminSystemOut",
+        "type": "object"
+      },
+      "AdminTopUserOut": {
+        "description": "One row of the top-spenders table.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expenseCount": {
+            "title": "Expensecount",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "totalExpense": {
+            "title": "Totalexpense",
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "email",
+          "expenseCount",
+          "totalExpense"
+        ],
+        "title": "AdminTopUserOut",
+        "type": "object"
+      },
+      "AdminTrendPointOut": {
+        "description": "One month in a platform trend series.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "expenses": {
+            "title": "Expenses",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "newUsers": {
+            "title": "Newusers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "expenses",
+          "amount",
+          "newUsers"
+        ],
+        "title": "AdminTrendPointOut",
+        "type": "object"
+      },
+      "AdminUserActionOut": {
+        "description": "Result of an admin action on a user.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "AdminUserActionOut",
+        "type": "object"
+      },
+      "AdminUserBudgetOut": {
+        "description": "User budget configuration.",
+        "properties": {
+          "cats": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Cats",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          }
+        },
+        "required": [
+          "total",
+          "cats"
+        ],
+        "title": "AdminUserBudgetOut",
+        "type": "object"
+      },
+      "AdminUserDebtsOut": {
+        "description": "List of debts for a specific user.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DebtOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserDebtsOut",
+        "type": "object"
+      },
+      "AdminUserDetailOut": {
+        "description": "Comprehensive user data summary for superadmins.",
+        "properties": {
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminUserBudgetOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currentMonthExpense": {
+            "default": "0.00",
+            "title": "Currentmonthexpense",
+            "type": "string"
+          },
+          "netDebt": {
+            "default": "0.00",
+            "title": "Netdebt",
+            "type": "string"
+          },
+          "totalBorrow": {
+            "default": "0.00",
+            "title": "Totalborrow",
+            "type": "string"
+          },
+          "totalLend": {
+            "default": "0.00",
+            "title": "Totallend",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AdminUserItemOut"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "title": "AdminUserDetailOut",
+        "type": "object"
+      },
+      "AdminUserExpensesOut": {
+        "description": "List of expenses for a specific user.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserExpensesOut",
+        "type": "object"
+      },
+      "AdminUserImportIn": {
+        "description": "Payload to import a batch of users.",
+        "properties": {
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserImportRow"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "title": "AdminUserImportIn",
+        "type": "object"
+      },
+      "AdminUserImportOut": {
+        "description": "Result of an admin user import batch.",
+        "properties": {
+          "createdCount": {
+            "title": "Createdcount",
+            "type": "integer"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "skippedCount": {
+            "title": "Skippedcount",
+            "type": "integer"
+          },
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "createdCount",
+          "skippedCount"
+        ],
+        "title": "AdminUserImportOut",
+        "type": "object"
+      },
+      "AdminUserImportRow": {
+        "description": "Single user entry to import.",
+        "properties": {
+          "email": {
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "AdminUserImportRow",
+        "type": "object"
+      },
+      "AdminUserItemOut": {
+        "description": "User row in the admin users list.",
+        "properties": {
+          "budgetCount": {
+            "default": 0,
+            "title": "Budgetcount",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "debtCount": {
+            "default": 0,
+            "title": "Debtcount",
+            "type": "integer"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expenseCount": {
+            "default": 0,
+            "title": "Expensecount",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isSuperadmin": {
+            "title": "Issuperadmin",
+            "type": "boolean"
+          },
+          "isSuspended": {
+            "default": false,
+            "title": "Issuspended",
+            "type": "boolean"
+          },
+          "lang": {
+            "title": "Lang",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recurringCount": {
+            "default": 0,
+            "title": "Recurringcount",
+            "type": "integer"
+          },
+          "theme": {
+            "title": "Theme",
+            "type": "string"
+          },
+          "totalExpense": {
+            "default": "0.00",
+            "title": "Totalexpense",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "createdAt",
+          "lang",
+          "theme",
+          "isSuperadmin"
+        ],
+        "title": "AdminUserItemOut",
+        "type": "object"
+      },
+      "AdminUserListOut": {
+        "description": "List of users with pagination total.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserListOut",
+        "type": "object"
+      },
+      "AdminUserRecurringOut": {
+        "description": "List of recurring rules for a specific user.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserRecurringOut",
+        "type": "object"
+      },
+      "AdminUserRoleIn": {
+        "description": "Payload to grant or revoke superadmin on a user.",
+        "properties": {
+          "superadmin": {
+            "title": "Superadmin",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "superadmin"
+        ],
+        "title": "AdminUserRoleIn",
+        "type": "object"
+      },
+      "AdminUserSuspendIn": {
+        "description": "Payload to suspend or unsuspend a user.",
+        "properties": {
+          "suspended": {
+            "default": true,
+            "title": "Suspended",
+            "type": "boolean"
+          }
+        },
+        "title": "AdminUserSuspendIn",
+        "type": "object"
+      },
       "AuthOut": {
         "description": "Login/register/refresh response: user + token pair.",
         "properties": {
@@ -25,7 +1198,7 @@
         "type": "object"
       },
       "BackupBudgetRow": {
-        "description": "One budgets row (at most one per user — the PK is ``user_id``).",
+        "description": "One budgets row (at most one per user \u2014 the PK is ``user_id``).",
         "properties": {
           "cats": {
             "additionalProperties": {
@@ -86,7 +1259,7 @@
         "type": "object"
       },
       "BackupEnvelope": {
-        "description": "The full-fidelity backup document (both directions, ADR-0012/0028).\n\n``expenses``/``debts`` reuse :class:`ExpenseOut`/:class:`DebtOut`, so the\nbackup wire shape IS the CRUD wire shape (every column, money as exact\ndecimal strings) — a downloaded file can be fed straight back to\n``POST /import/restore``. ``recurring`` (v2, ADR-0028) carries the\ncaller's rules; it defaults to empty so v1 consumers ignore it safely.",
+        "description": "The full-fidelity backup document (both directions, ADR-0012/0028).\n\n``expenses``/``debts`` reuse :class:`ExpenseOut`/:class:`DebtOut`, so the\nbackup wire shape IS the CRUD wire shape (every column, money as exact\ndecimal strings) \u2014 a downloaded file can be fed straight back to\n``POST /import/restore``. ``recurring`` (v2, ADR-0028) carries the\ncaller's rules; it defaults to empty so v1 consumers ignore it safely.",
         "properties": {
           "budgets": {
             "items": {
@@ -141,7 +1314,7 @@
         "type": "object"
       },
       "BackupRecurringRow": {
-        "description": "One recurring-rule row (ADR-0028) — every column EXCEPT ``id``/``user_id``.\n\nRules have no history to preserve beyond their content, so unlike\nexpenses/debts the export omits identity entirely: restore always mints\nfresh PKs under the caller. Field validators/amount types are the shared\n:mod:`app.schemas.recurring` ones (do not drift — ADR-0004).",
+        "description": "One recurring-rule row (ADR-0028) \u2014 every column EXCEPT ``id``/``user_id``.\n\nRules have no history to preserve beyond their content, so unlike\nexpenses/debts the export omits identity entirely: restore always mints\nfresh PKs under the caller. Field validators/amount types are the shared\n:mod:`app.schemas.recurring` ones (do not drift \u2014 ADR-0004).",
         "properties": {
           "active": {
             "title": "Active",
@@ -274,7 +1447,7 @@
         "type": "object"
       },
       "BudgetIn": {
-        "description": "PUT /budgets body — both fields optional (partial upsert).",
+        "description": "PUT /budgets body \u2014 both fields optional (partial upsert).",
         "properties": {
           "cats": {
             "anyOf": [
@@ -456,7 +1629,7 @@
         "type": "object"
       },
       "DebtListOut": {
-        "description": "Envelope for GET /debts (ADR-0004 §8).",
+        "description": "Envelope for GET /debts (ADR-0004 \u00a78).",
         "properties": {
           "items": {
             "items": {
@@ -556,7 +1729,7 @@
         "type": "object"
       },
       "DebtPayIn": {
-        "description": "POST /debts/{id}/pay body — the amount being paid back.",
+        "description": "POST /debts/{id}/pay body \u2014 the amount being paid back.",
         "properties": {
           "amt": {
             "examples": [
@@ -596,7 +1769,7 @@
         "type": "object"
       },
       "DebtUpdate": {
-        "description": "PATCH /debts/{id} body — every field optional (partial update).",
+        "description": "PATCH /debts/{id} body \u2014 every field optional (partial update).",
         "properties": {
           "amt": {
             "anyOf": [
@@ -741,7 +1914,7 @@
         "type": "object"
       },
       "ExpenseListOut": {
-        "description": "Envelope for every list endpoint (ADR-0004 §8).",
+        "description": "Envelope for every list endpoint (ADR-0004 \u00a78).",
         "properties": {
           "items": {
             "items": {
@@ -850,7 +2023,7 @@
         "type": "object"
       },
       "ExpenseUpdate": {
-        "description": "PATCH /expenses/{id} body — every field optional (partial update).",
+        "description": "PATCH /expenses/{id} body \u2014 every field optional (partial update).",
         "properties": {
           "amt": {
             "anyOf": [
@@ -985,7 +2158,7 @@
         "type": "object"
       },
       "KhataListOut": {
-        "description": "Envelope for GET /expenses/categories (ADR-0004 §8; cursor always null).",
+        "description": "Envelope for GET /expenses/categories (ADR-0004 \u00a78; cursor always null).",
         "properties": {
           "items": {
             "items": {
@@ -1013,7 +2186,7 @@
         "type": "object"
       },
       "KhataOut": {
-        "description": "One distinct khata (category) derived from the caller's history.\n\n``grp``/``last_used`` come from the khata's *most recent* expense and are\nprefill hints only — reports/budgets keep grouping each expense row by its\nown ``grp`` (ADR-0019).",
+        "description": "One distinct khata (category) derived from the caller's history.\n\n``grp``/``last_used`` come from the khata's *most recent* expense and are\nprefill hints only \u2014 reports/budgets keep grouping each expense row by its\nown ``grp`` (ADR-0019).",
         "properties": {
           "cat": {
             "title": "Cat",
@@ -1039,7 +2212,7 @@
             "type": "string"
           },
           "use_count": {
-            "minimum": 1,
+            "minimum": 1.0,
             "title": "Use Count",
             "type": "integer"
           }
@@ -1281,7 +2454,7 @@
         "type": "object"
       },
       "RecurringListOut": {
-        "description": "Envelope for GET /recurring (ADR-0004 §8).",
+        "description": "Envelope for GET /recurring (ADR-0004 \u00a78).",
         "properties": {
           "items": {
             "items": {
@@ -1417,7 +2590,7 @@
         "type": "object"
       },
       "RecurringRunOut": {
-        "description": "POST /recurring/run result: what THIS run materialized (ADR-0014 §4).\n\n``created == len(expenses)``; ``rules`` is how many due rules were\nprocessed. A repeat run the same day returns ``created: 0`` — the\nidempotency guarantee.",
+        "description": "POST /recurring/run result: what THIS run materialized (ADR-0014 \u00a74).\n\n``created == len(expenses)``; ``rules`` is how many due rules were\nprocessed. A repeat run the same day returns ``created: 0`` \u2014 the\nidempotency guarantee.",
         "properties": {
           "created": {
             "title": "Created",
@@ -1450,7 +2623,7 @@
         "type": "object"
       },
       "RecurringUpdate": {
-        "description": "PATCH /recurring/{id} body — every field optional (partial update).",
+        "description": "PATCH /recurring/{id} body \u2014 every field optional (partial update).",
         "properties": {
           "active": {
             "anyOf": [
@@ -1694,7 +2867,7 @@
         "type": "object"
       },
       "SessionItemOut": {
-        "description": "One live session of the caller (GET /auth/sessions item).\n\n``expires_in`` is the remaining KV TTL of ``sess:<id>`` in seconds —\nthe same lifetime the refresh token has left.",
+        "description": "One live session of the caller (GET /auth/sessions item).\n\n``expires_in`` is the remaining KV TTL of ``sess:<id>`` in seconds \u2014\nthe same lifetime the refresh token has left.",
         "properties": {
           "expires_in": {
             "title": "Expires In",
@@ -1836,10 +3009,6 @@
             "title": "Id",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
           "isSuperadmin": {
             "default": false,
             "title": "Issuperadmin",
@@ -1849,6 +3018,10 @@
             "default": false,
             "title": "Issuspended",
             "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           }
         },
         "required": [
@@ -1918,8 +3091,8 @@
       "VoiceParseOut": {
         "properties": {
           "confidence": {
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Confidence",
             "type": "number"
           },
@@ -1976,322 +3149,6 @@
         ],
         "title": "YearlyReportOut",
         "type": "object"
-      },
-      "AdminPlatformStatsOut": {
-        "description": "Global system-wide statistics for superadmins.",
-        "properties": {
-          "activeRecurring": {
-            "title": "Activerecurring",
-            "type": "integer"
-          },
-          "totalAmount": {
-            "title": "Totalamount",
-            "type": "string"
-          },
-          "totalDebts": {
-            "title": "Totaldebts",
-            "type": "integer"
-          },
-          "totalExpenses": {
-            "title": "Totalexpenses",
-            "type": "integer"
-          },
-          "totalUsers": {
-            "title": "Totalusers",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "totalUsers",
-          "totalExpenses",
-          "totalAmount",
-          "totalDebts",
-          "activeRecurring"
-        ],
-        "title": "AdminPlatformStatsOut",
-        "type": "object"
-      },
-      "AdminUserItemOut": {
-        "description": "User row in the admin users list.",
-        "properties": {
-          "budgetCount": {
-            "default": 0,
-            "title": "Budgetcount",
-            "type": "integer"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "title": "Createdat",
-            "type": "string"
-          },
-          "debtCount": {
-            "default": 0,
-            "title": "Debtcount",
-            "type": "integer"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "expenseCount": {
-            "default": 0,
-            "title": "Expensecount",
-            "type": "integer"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "isSuperadmin": {
-            "title": "Issuperadmin",
-            "type": "boolean"
-          },
-          "lang": {
-            "title": "Lang",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "recurringCount": {
-            "default": 0,
-            "title": "Recurringcount",
-            "type": "integer"
-          },
-          "theme": {
-            "title": "Theme",
-            "type": "string"
-          },
-          "totalExpense": {
-            "default": "0.00",
-            "title": "Totalexpense",
-            "type": "string"
-          },
-          "isSuspended": {
-            "default": false,
-            "title": "Issuspended",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "email",
-          "createdAt",
-          "lang",
-          "theme",
-          "isSuperadmin",
-          "isSuspended"
-        ],
-        "title": "AdminUserItemOut",
-        "type": "object"
-      },
-      "AdminUserListOut": {
-        "description": "List of users with pagination total.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/AdminUserItemOut"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "title": "AdminUserListOut",
-        "type": "object"
-      },
-      "AdminUserBudgetOut": {
-        "description": "User budget configuration.",
-        "properties": {
-          "cats": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Cats",
-            "type": "object"
-          },
-          "total": {
-            "title": "Total",
-            "type": "string"
-          },
-          "updatedAt": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Updatedat"
-          }
-        },
-        "required": [
-          "total",
-          "cats"
-        ],
-        "title": "AdminUserBudgetOut",
-        "type": "object"
-      },
-      "AdminUserDetailOut": {
-        "description": "Comprehensive user data summary for superadmins.",
-        "properties": {
-          "budget": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AdminUserBudgetOut"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
-          "currentMonthExpense": {
-            "default": "0.00",
-            "title": "Currentmonthexpense",
-            "type": "string"
-          },
-          "netDebt": {
-            "default": "0.00",
-            "title": "Netdebt",
-            "type": "string"
-          },
-          "totalBorrow": {
-            "default": "0.00",
-            "title": "Totalborrow",
-            "type": "string"
-          },
-          "totalLend": {
-            "default": "0.00",
-            "title": "Totallend",
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/AdminUserItemOut"
-          }
-        },
-        "required": [
-          "user"
-        ],
-        "title": "AdminUserDetailOut",
-        "type": "object"
-      },
-      "AdminUserExpensesOut": {
-        "description": "List of expenses for a specific user.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ExpenseOut"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "title": "AdminUserExpensesOut",
-        "type": "object"
-      },
-      "AdminUserDebtsOut": {
-        "description": "List of debts for a specific user.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DebtOut"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "title": "AdminUserDebtsOut",
-        "type": "object"
-      },
-      "AdminUserRecurringOut": {
-        "description": "List of recurring rules for a specific user.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/RecurringOut"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "title": "AdminUserRecurringOut",
-        "type": "object"
-      },
-      "AdminUserSuspendIn": {
-        "description": "Payload to suspend or unsuspend a user.",
-        "properties": {
-          "suspended": {
-            "default": true,
-            "title": "Suspended",
-            "type": "boolean"
-          }
-        },
-        "title": "AdminUserSuspendIn",
-        "type": "object"
-      },
-      "AdminUserActionOut": {
-        "description": "Result of an admin action on a user.",
-        "properties": {
-          "success": {
-            "default": true,
-            "title": "Success",
-            "type": "boolean"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "AdminUserActionOut",
-        "type": "object"
       }
     },
     "securitySchemes": {
@@ -2307,6 +3164,1040 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/analytics": {
+      "get": {
+        "description": "Platform-wide spending shape, aggregated across every user.\n\nDeliberately aggregate-only: this is the one admin screen that reads all\nusers' expenses at once, so it returns distributions and totals, never\nindividual rows (the per-user inspector already covers that, one\nconsciously chosen user at a time).",
+        "operationId": "get_admin_analytics_api_v1_admin_analytics_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 36,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAnalyticsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin Analytics",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/audit": {
+      "get": {
+        "description": "Read the admin audit trail, newest first.\n\nDeliberately read-only: there is no endpoint that edits or deletes a\ntrail entry, because a trail an admin can rewrite is not a trail.",
+        "operationId": "list_admin_audit_api_v1_admin_audit_get",
+        "parameters": [
+          {
+            "description": "Filter by exact action verb",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by exact action verb",
+              "title": "Action"
+            }
+          },
+          {
+            "description": "Search actor, target or detail",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search actor, target or detail",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuditListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Audit",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/categories": {
+      "get": {
+        "description": "Distinct cat/grp pairs actually present in expenses, with usage.\n\n``expenses.cat`` is free text: no foreign key, no check constraint, and\nthe API accepts any 1-80 character string. It is also what the Bengali\nvoice parser writes and what every report groups by, so the live\ntaxonomy is whatever users and the parser happened to type \u2014 \"\u09b0\u09bf\u0995\u09cd\u09b8\u09be\"\nand \"\u09b0\u09bf\u0995\u09b6\u09be\" are two categories to the database and one to a human. This\nendpoint is how a superadmin sees that drift; ``grp`` is a fixed\n``ExpenseGroup`` literal at the API layer, so it drifts only for rows\nwritten before a group was renamed.",
+        "operationId": "list_admin_categories_api_v1_admin_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategoryListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Categories",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/categories/merge": {
+      "post": {
+        "description": "Rename or merge one category into another across ALL users' expenses.\n\nThe repair tool for taxonomy drift (\"\u09b0\u09bf\u0995\u09cd\u09b8\u09be\" vs \"\u09b0\u09bf\u0995\u09b6\u09be\" vs \"rickshaw\"\nall meaning the same thing). It rewrites rows for every user at once, so\nit is audited with the exact from/to pair and the affected row count.",
+        "operationId": "merge_admin_categories_api_v1_admin_categories_merge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCategoryMergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBulkActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Merge Admin Categories",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/export/users.csv": {
+      "get": {
+        "description": "Stream all registered users as an RFC-4180 CSV with UTF-8 BOM.\n\nReading is not usually audited, but this endpoint exfiltrates the whole\nuser table (names, emails, spend) in one request \u2014 worth a trail entry.",
+        "operationId": "export_admin_users_csv_api_v1_admin_export_users_csv_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Admin Users Csv",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/import/users": {
+      "post": {
+        "description": "Import users from a batch list. Skips duplicates and invalid emails.",
+        "operationId": "import_admin_users_api_v1_admin_import_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Admin Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations": {
+      "get": {
+        "description": "Global integration wiring, as opposed to any one user's settings.\n\n``GET /sheets/status`` answers for the caller; the service account\nitself is deployment-wide config, and whether it is present decides\nwhether Sheets sync works for *anybody*.",
+        "operationId": "get_admin_integrations_api_v1_admin_integrations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIntegrationsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin Integrations",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/sessions": {
+      "get": {
+        "description": "Live sessions per user across the platform.\n\n``GET /auth/sessions`` only ever shows the caller's own sessions, so\nuntil now the only way an admin could end someone else's session was to\nsuspend the account. This walks the per-user session index instead.\n\nThe scan is one KV round-trip per user, hence the ``limit``; users with\nno live session are omitted from the response rather than padding it.",
+        "operationId": "list_admin_sessions_api_v1_admin_sessions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 300,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSessionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Sessions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/stats": {
+      "get": {
+        "description": "Return platform-wide summary statistics.",
+        "operationId": "get_platform_stats_api_v1_admin_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPlatformStatsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Platform Stats",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/system": {
+      "get": {
+        "description": "Runtime facts behind the rest of the dashboard.\n\nThe reason this screen exists: with ``POIPOIHISAB_KV_URL`` unset the app\nsilently falls back to per-process ``MemoryKV``. On a serverless deploy\nthat means every cold start logs everybody out and resets the\nbrute-force counters \u2014 a production-breaking condition with no symptom\nanywhere else in the UI.",
+        "operationId": "get_admin_system_api_v1_admin_system_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSystemOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin System",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Search and list all users with aggregated financial metrics.",
+        "operationId": "list_admin_users_api_v1_admin_users_get",
+        "parameters": [
+          {
+            "description": "Search by name, email, or user ID",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search by name, email, or user ID",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/bulk-delete": {
+      "post": {
+        "description": "Bulk permanently delete users, excluding the current admin.\n\nThe most destructive endpoint in the app: an irreversible cascade over\nan arbitrary id list. It is therefore both rate-limited and audited.",
+        "operationId": "bulk_delete_admin_users_api_v1_admin_users_bulk_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminBulkUserDeleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBulkActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk Delete Admin Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/bulk-suspend": {
+      "post": {
+        "description": "Bulk suspend or reactivate users, excluding the current admin.",
+        "operationId": "bulk_suspend_admin_users_api_v1_admin_users_bulk_suspend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminBulkUserSuspendIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBulkActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk Suspend Admin Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}": {
+      "delete": {
+        "description": "Permanently delete a user and cascade delete their expenses, debts, budgets, and recurring rules.",
+        "operationId": "delete_admin_user_api_v1_admin_users__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Admin User",
+        "tags": [
+          "admin"
+        ]
+      },
+      "get": {
+        "description": "Fetch complete user profile and aggregated metrics.",
+        "operationId": "get_admin_user_detail_api_v1_admin_users__user_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin User Detail",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/debts": {
+      "get": {
+        "description": "Return all debts for a specific user.",
+        "operationId": "get_admin_user_debts_api_v1_admin_users__user_id__debts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDebtsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin User Debts",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/expenses": {
+      "get": {
+        "description": "Return expenses for a specific user.",
+        "operationId": "get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserExpensesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin User Expenses",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/recurring": {
+      "get": {
+        "description": "Return recurring expense rules for a specific user.",
+        "operationId": "get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserRecurringOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Admin User Recurring",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/revoke-sessions": {
+      "post": {
+        "description": "Sign one user out everywhere without suspending their account.\n\nThe recovery path for a lost or shared device: suspension is the wrong\ntool there, because it also locks the user out of their own data.",
+        "operationId": "revoke_admin_user_sessions_api_v1_admin_users__user_id__revoke_sessions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRevokeSessionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Admin User Sessions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/role": {
+      "post": {
+        "description": "Grant or revoke superadmin on a user.\n\nBefore this endpoint, ``is_superadmin`` could only be set by editing the\n``POIPOIHISAB_SUPERADMIN_EMAILS`` env var or writing to the database by\nhand. Two guards apply: an admin cannot demote themselves (that is how\nyou lock yourself out with one click), and the platform can never be\nleft with zero superadmins.",
+        "operationId": "set_admin_user_role_api_v1_admin_users__user_id__role_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserRoleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Admin User Role",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/suspend": {
+      "post": {
+        "description": "Suspend or unsuspend a user. When suspended, all active sessions are revoked immediately.",
+        "operationId": "suspend_admin_user_api_v1_admin_users__user_id__suspend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserSuspendIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Suspend Admin User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "description": "Verify credentials and start a session (401 with a uniform message).",
@@ -2455,7 +4346,7 @@
     },
     "/api/v1/auth/refresh-cookie": {
       "post": {
-        "description": "Rotate the refresh token carried in the ``kh_refresh`` httpOnly cookie.\n\nWith a cookie present: identical semantics to ``POST /auth/refresh``\n(same KV keys, same reuse detection); the rotated token is returned in\nthe body AND set as the new cookie (HttpOnly, Secure, SameSite=Lax,\npath=/api/v1/auth).\n\nSession probe (T14.1): a request carrying NO ``kh_refresh`` cookie at\nall answers 200 ``{\"session\": false}`` and sets no cookie — the web\nboot probes this endpoint whenever no cookie exists, and that expected\nempty state must not pollute devtools with 401s. A cookie that IS\npresent but invalid/expired/revoked/reused still 401s exactly like the\nJSON transport.",
+        "description": "Rotate the refresh token carried in the ``kh_refresh`` httpOnly cookie.\n\nWith a cookie present: identical semantics to ``POST /auth/refresh``\n(same KV keys, same reuse detection); the rotated token is returned in\nthe body AND set as the new cookie (HttpOnly, Secure, SameSite=Lax,\npath=/api/v1/auth).\n\nSession probe (T14.1): a request carrying NO ``kh_refresh`` cookie at\nall answers 200 ``{\"session\": false}`` and sets no cookie \u2014 the web\nboot probes this endpoint whenever no cookie exists, and that expected\nempty state must not pollute devtools with 401s. A cookie that IS\npresent but invalid/expired/revoked/reused still 401s exactly like the\nJSON transport.",
         "operationId": "refresh_cookie_api_v1_auth_refresh_cookie_post",
         "responses": {
           "200": {
@@ -2554,7 +4445,7 @@
     },
     "/api/v1/auth/sessions/revoke-others": {
       "post": {
-        "description": "Revoke every live session of the caller EXCEPT the current one.\n\nSame teardown semantics as ``POST /auth/logout`` per victim session:\n``sess:<sid>`` + its current ``rt:<hash>`` die together, and the sid is\nremoved from the profile's index. Idempotent — with nothing else live it\nanswers ``{\"revoked\": 0}``. 409 when the caller's token has no ``sid``\nclaim (nothing is revoked: refusing beats guessing what to keep).",
+        "description": "Revoke every live session of the caller EXCEPT the current one.\n\nSame teardown semantics as ``POST /auth/logout`` per victim session:\n``sess:<sid>`` + its current ``rt:<hash>`` die together, and the sid is\nremoved from the profile's index. Idempotent \u2014 with nothing else live it\nanswers ``{\"revoked\": 0}``. 409 when the caller's token has no ``sid``\nclaim (nothing is revoked: refusing beats guessing what to keep).",
         "operationId": "revoke_other_sessions_api_v1_auth_sessions_revoke_others_post",
         "responses": {
           "200": {
@@ -2808,7 +4699,7 @@
     },
     "/api/v1/debts/{debt_id}": {
       "delete": {
-        "description": "Delete the caller's debt (204; unknown/foreign id → 404).",
+        "description": "Delete the caller's debt (204; unknown/foreign id \u2192 404).",
         "operationId": "delete_debt_api_v1_debts__debt_id__delete",
         "parameters": [
           {
@@ -2907,7 +4798,7 @@
     },
     "/api/v1/debts/{debt_id}/pay": {
       "post": {
-        "description": "Close out a debt with a payment.\n\n``amt >= debt.amt`` → FULL: the debt settles (``settled_at`` = now UTC,\nthe stored amount is left untouched — overpay is not recorded).\n``0 < amt < debt.amt`` → PARTIAL: the remaining amount shrinks.\nPaying an already-settled debt → 409 ``debt_already_settled``.",
+        "description": "Close out a debt with a payment.\n\n``amt >= debt.amt`` \u2192 FULL: the debt settles (``settled_at`` = now UTC,\nthe stored amount is left untouched \u2014 overpay is not recorded).\n``0 < amt < debt.amt`` \u2192 PARTIAL: the remaining amount shrinks.\nPaying an already-settled debt \u2192 409 ``debt_already_settled``.",
         "operationId": "pay_debt_api_v1_debts__debt_id__pay_post",
         "parameters": [
           {
@@ -3177,7 +5068,7 @@
     },
     "/api/v1/expenses/categories": {
       "get": {
-        "description": "Distinct khatas derived from the caller's expense history (ADR-0019).\n\nOne row per distinct ``cat``: ``grp``/``last_used`` come from the khata's\nmost recent expense (window pass, portable across SQLite/Postgres — no\n``DISTINCT ON``), ``use_count`` from a partition count. Ordered\nmost-used → most-recent → cat. A khata set is bounded by the user's own\ndistinct cats, so it is picker-sized and unpaginated.",
+        "description": "Distinct khatas derived from the caller's expense history (ADR-0019).\n\nOne row per distinct ``cat``: ``grp``/``last_used`` come from the khata's\nmost recent expense (window pass, portable across SQLite/Postgres \u2014 no\n``DISTINCT ON``), ``use_count`` from a partition count. Ordered\nmost-used \u2192 most-recent \u2192 cat. A khata set is bounded by the user's own\ndistinct cats, so it is picker-sized and unpaginated.",
         "operationId": "list_khata_categories_api_v1_expenses_categories_get",
         "responses": {
           "200": {
@@ -3204,7 +5095,7 @@
     },
     "/api/v1/expenses/{expense_id}": {
       "delete": {
-        "description": "Delete the caller's expense (204; unknown/foreign id → 404).",
+        "description": "Delete the caller's expense (204; unknown/foreign id \u2192 404).",
         "operationId": "delete_expense_api_v1_expenses__expense_id__delete",
         "parameters": [
           {
@@ -3303,7 +5194,7 @@
     },
     "/api/v1/export/backup.json": {
       "get": {
-        "description": "Dump the caller's complete ledger as one JSON envelope (ADR-0012).\n\nEvery column of every expenses/debts/budgets row; rows are ordered\ndeterministically (``iso ASC, id ASC`` — the CSV export's order) so the\nsame data always yields the same document modulo ``exported_at``.",
+        "description": "Dump the caller's complete ledger as one JSON envelope (ADR-0012).\n\nEvery column of every expenses/debts/budgets row; rows are ordered\ndeterministically (``iso ASC, id ASC`` \u2014 the CSV export's order) so the\nsame data always yields the same document modulo ``exported_at``.",
         "operationId": "export_backup_json_api_v1_export_backup_json_get",
         "responses": {
           "200": {
@@ -3494,7 +5385,7 @@
     },
     "/api/v1/import/restore": {
       "post": {
-        "description": "REPLACE the caller's ledger with the uploaded backup (v1/v2, ADR-0012).\n\nThe whole swap is one transaction: delete the caller's budgets, debts,\nexpenses AND recurring rules, insert the uploaded rows with fresh PKs,\ncommit. Recurring rows are wiped for BOTH versions — a v1 file predates\nrules, so restoring it means the ledger equals the file (ADR-0028).\nRows whose validation fails never reach the database; a failure\nmid-insert rolls the deletes back too.",
+        "description": "REPLACE the caller's ledger with the uploaded backup (v1/v2, ADR-0012).\n\nThe whole swap is one transaction: delete the caller's budgets, debts,\nexpenses AND recurring rules, insert the uploaded rows with fresh PKs,\ncommit. Recurring rows are wiped for BOTH versions \u2014 a v1 file predates\nrules, so restoring it means the ledger equals the file (ADR-0028).\nRows whose validation fails never reach the database; a failure\nmid-insert rolls the deletes back too.",
         "operationId": "import_restore_api_v1_import_restore_post",
         "requestBody": {
           "content": {
@@ -3672,7 +5563,7 @@
     },
     "/api/v1/recurring/run": {
       "post": {
-        "description": "Materialize every due occurrence of the caller's active rules (ADR-0014).\n\nA rule is due while ``next_run <= today``. Each due occurrence becomes one\n``expenses`` row with ``iso`` = the occurrence date (catch-up included, up\nto :data:`_MAX_CATCH_UP` per rule); then ``next_run`` moves past ``today``.\nPaused (``active=false``) and future-dated rules are skipped. Re-running\nthe same day is a no-op: ``created: 0`` — the idempotency contract.",
+        "description": "Materialize every due occurrence of the caller's active rules (ADR-0014).\n\nA rule is due while ``next_run <= today``. Each due occurrence becomes one\n``expenses`` row with ``iso`` = the occurrence date (catch-up included, up\nto :data:`_MAX_CATCH_UP` per rule); then ``next_run`` moves past ``today``.\nPaused (``active=false``) and future-dated rules are skipped. Re-running\nthe same day is a no-op: ``created: 0`` \u2014 the idempotency contract.",
         "operationId": "run_recurring_api_v1_recurring_run_post",
         "responses": {
           "200": {
@@ -3699,7 +5590,7 @@
     },
     "/api/v1/recurring/{recurring_id}": {
       "delete": {
-        "description": "Delete the caller's rule (204; unknown/foreign id → 404).\n\nDeleting a rule never touches expenses it already materialized.",
+        "description": "Delete the caller's rule (204; unknown/foreign id \u2192 404).\n\nDeleting a rule never touches expenses it already materialized.",
         "operationId": "delete_recurring_api_v1_recurring__recurring_id__delete",
         "parameters": [
           {
@@ -3739,7 +5630,7 @@
         ]
       },
       "patch": {
-        "description": "Partially update the caller's rule (omitted fields stay as-is).\n\n``next_run`` is server-owned and forward-only (ADR-0014 §3): if the patch\nchanges ``freq`` or ``start_date``, the cursor is clamped to\n``max(current next_run, new start_date)`` — it can advance (a later\nstart_date postpones materialization) but never rewind (which would\nre-materialize occurrences that already became expenses).",
+        "description": "Partially update the caller's rule (omitted fields stay as-is).\n\n``next_run`` is server-owned and forward-only (ADR-0014 \u00a73): if the patch\nchanges ``freq`` or ``start_date``, the cursor is clamped to\n``max(current next_run, new start_date)`` \u2014 it can advance (a later\nstart_date postpones materialization) but never rewind (which would\nre-materialize occurrences that already became expenses).",
         "operationId": "update_recurring_api_v1_recurring__recurring_id__patch",
         "parameters": [
           {
@@ -3908,7 +5799,7 @@
     },
     "/api/v1/voice/parse": {
       "post": {
-        "description": "Rule-parse a Bengali voice transcript into expense candidates.\n\nThe keyword matcher is extended with the caller's history-derived khatas\n(ADR-0019) — every khata the user has ever saved is recognised on the\nnext transcript, free of any AI/token cost. Pure SQL + rules.",
+        "description": "Rule-parse a Bengali voice transcript into expense candidates.\n\nThe keyword matcher is extended with the caller's history-derived khatas\n(ADR-0019) \u2014 every khata the user has ever saved is recognised on the\nnext transcript, free of any AI/token cost. Pure SQL + rules.",
         "operationId": "parse_transcript_api_v1_voice_parse_post",
         "requestBody": {
           "content": {
@@ -3972,380 +5863,6 @@
         "tags": [
           "health"
         ]
-      }
-    },
-    "/api/v1/admin/stats": {
-      "get": {
-        "operationId": "get_platform_stats_api_v1_admin_stats_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminPlatformStatsOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Return platform-wide summary statistics.",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/v1/admin/users": {
-      "get": {
-        "operationId": "list_admin_users_api_v1_admin_users_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "q",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Q"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Search and list all users with aggregated financial metrics.",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/v1/admin/users/{user_id}": {
-      "get": {
-        "operationId": "get_admin_user_detail_api_v1_admin_users__user_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserDetailOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Fetch complete user profile and aggregated metrics.",
-        "tags": [
-          "admin"
-        ]
-      },
-      "delete": {
-        "summary": "Permanently delete a user",
-        "operationId": "delete_admin_user",
-        "tags": [
-          "admin"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserActionOut"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request (e.g. self-delete)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Superadmin access required"
-          },
-          "404": {
-            "description": "User not found"
-          }
-        }
-      }
-    },
-    "/api/v1/admin/users/{user_id}/expenses": {
-      "get": {
-        "operationId": "get_admin_user_expenses_api_v1_admin_users__user_id__expenses_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserExpensesOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Return expenses for a specific user.",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/v1/admin/users/{user_id}/debts": {
-      "get": {
-        "operationId": "get_admin_user_debts_api_v1_admin_users__user_id__debts_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserDebtsOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Return all debts for a specific user.",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/v1/admin/users/{user_id}/recurring": {
-      "get": {
-        "operationId": "get_admin_user_recurring_api_v1_admin_users__user_id__recurring_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserRecurringOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Return recurring expense rules for a specific user.",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/v1/admin/users/{user_id}/suspend": {
-      "post": {
-        "summary": "Suspend or reactivate a user",
-        "operationId": "suspend_admin_user",
-        "tags": [
-          "admin"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AdminUserSuspendIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUserActionOut"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request (e.g. self-suspend)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Superadmin access required"
-          },
-          "404": {
-            "description": "User not found"
-          }
-        }
       }
     }
   }

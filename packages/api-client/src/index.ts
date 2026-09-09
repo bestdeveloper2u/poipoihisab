@@ -816,3 +816,135 @@ export async function apiAdminDownloadUsersCsv(
 }
 
 
+
+/* ------------------------------------------------------------------ */
+/* Super Admin — oversight (audit, roles, sessions, analytics, system) */
+/* ------------------------------------------------------------------ */
+
+export type AdminAuditItem = components["schemas"]["AdminAuditItemOut"];
+export type AdminAuditList = components["schemas"]["AdminAuditListOut"];
+export type AdminSessions = components["schemas"]["AdminSessionsOut"];
+export type AdminSessionUser = components["schemas"]["AdminSessionUserOut"];
+export type AdminRevokeSessions = components["schemas"]["AdminRevokeSessionsOut"];
+export type AdminAnalytics = components["schemas"]["AdminAnalyticsOut"];
+export type AdminSlice = components["schemas"]["AdminSliceOut"];
+export type AdminTrendPoint = components["schemas"]["AdminTrendPointOut"];
+export type AdminTopUser = components["schemas"]["AdminTopUserOut"];
+export type AdminCategoryItem = components["schemas"]["AdminCategoryItemOut"];
+export type AdminCategoryList = components["schemas"]["AdminCategoryListOut"];
+export type AdminSystem = components["schemas"]["AdminSystemOut"];
+export type AdminIntegrations = components["schemas"]["AdminIntegrationsOut"];
+
+export interface AdminAuditParams {
+  action?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/** Read the admin audit trail, newest first (superadmin only). */
+export async function apiAdminAudit(
+  params: AdminAuditParams = {},
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminAuditList>> {
+  const { data, error, response } = await api.GET("/api/v1/admin/audit", {
+    params: { query: params },
+  });
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Grant or revoke superadmin on a user (superadmin only). */
+export async function apiAdminSetUserRole(
+  userId: string,
+  superadmin: boolean,
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminUserAction>> {
+  const { data, error, response } = await api.POST(
+    "/api/v1/admin/users/{user_id}/role",
+    {
+      params: { path: { user_id: userId } },
+      body: { superadmin },
+    },
+  );
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Live sessions per user across the platform (superadmin only). */
+export async function apiAdminSessions(
+  limit = 100,
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminSessions>> {
+  const { data, error, response } = await api.GET("/api/v1/admin/sessions", {
+    params: { query: { limit } },
+  });
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Sign one user out everywhere WITHOUT suspending them (superadmin only). */
+export async function apiAdminRevokeUserSessions(
+  userId: string,
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminRevokeSessions>> {
+  const { data, error, response } = await api.POST(
+    "/api/v1/admin/users/{user_id}/revoke-sessions",
+    { params: { path: { user_id: userId } } },
+  );
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Platform-wide spending analytics, aggregate only (superadmin only). */
+export async function apiAdminAnalytics(
+  months = 12,
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminAnalytics>> {
+  const { data, error, response } = await api.GET("/api/v1/admin/analytics", {
+    params: { query: { months } },
+  });
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Distinct expense cat/grp pairs with platform-wide usage (superadmin only). */
+export async function apiAdminCategories(
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminCategoryList>> {
+  const { data, error, response } = await api.GET("/api/v1/admin/categories", {});
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Merge one expense category into another across every user (superadmin only). */
+export async function apiAdminMergeCategory(
+  fromCat: string,
+  toCat: string,
+  toGrp: string | undefined,
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminBulkAction>> {
+  const { data, error, response } = await api.POST("/api/v1/admin/categories/merge", {
+    body: { fromCat, toCat, toGrp: toGrp ?? null },
+  });
+  if (data) return { ok: true, data: data as AdminBulkAction };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Runtime facts: DB, KV backend, migration head, config warnings. */
+export async function apiAdminSystem(
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminSystem>> {
+  const { data, error, response } = await api.GET("/api/v1/admin/system", {});
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Deployment-wide integration wiring (superadmin only). */
+export async function apiAdminIntegrations(
+  lang: Lang = "bn",
+): Promise<ApiResult<AdminIntegrations>> {
+  const { data, error, response } = await api.GET("/api/v1/admin/integrations", {});
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}

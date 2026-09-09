@@ -4,6 +4,7 @@ import { t, type Lang } from "@poipoihisab/core";
 import { useAuthStore } from "../store/auth";
 import { useLangStore } from "../store/lang";
 import { w } from "../lib/web-i18n";
+import { ADMIN_NAV_SECTIONS, ADMIN_TAB_BAR, type NavEntry } from "./adminNav";
 import { LangToggle } from "./LangToggle";
 import { Logo } from "./Logo";
 import { ToastHost } from "./Toast";
@@ -16,22 +17,28 @@ import {
   IconPencil,
   IconReceipt,
   IconRepeat,
-  IconShield,
   IconSliders,
   IconSwap,
   IconWallet,
 } from "./icons";
 
 /*
- * Sidebar/tab destinations. Labels resolve per render (t for the core dict,
- * w for web-local keys) — navRecurring lives in web-i18n until it graduates
- * into @poipoihisab/core alongside the others.
+ * MEMBER sidebar/tab destinations. Labels resolve per render (t for the core
+ * dict, w for web-local keys) — navRecurring lives in web-i18n until it
+ * graduates into @poipoihisab/core alongside the others.
  *
  * Prototype sidebar sections (www/index.html @596-633), adjusted by owner
  * 2026-09-08: NO add-expense item in the sidebar (the floating pencil/mic
  * FABs own add), and পুনরাবৃত্ত STAYS in আরও (owner: "/recurring we need
  * this"). Final: "মেনু" = ড্যাশবোর্ড → খরচ তালিকা → মাসিক হিসাব → রিপোর্ট,
  * then "আরও" = বাজেট → ধার-দেনা → পুনরাবৃত্ত → সেটিংস.
+ *
+ * Owner 2026-09-09: "superadmin no need hisab entry, other user need this."
+ * A superadmin gets ADMIN_NAV_SECTIONS (see ./adminNav) INSTEAD of this
+ * tree, and no add-expense FABs — they operate the platform rather than
+ * keeping a hisab in it. The member routes stay registered so a superadmin
+ * can still reach their own screens deliberately via the user-view item in
+ * UserMenu; they are simply not in the admin nav.
  */
 const NAV_DASHBOARD = {
   to: "/",
@@ -50,16 +57,10 @@ const NAV_MORE = [
   { to: "/recurring", end: false, Icon: IconRepeat, label: (l: Lang) => w(l, "navRecurring") },
   { to: "/settings", end: false, Icon: IconSliders, label: (l: Lang) => t(l, "navSettings") },
 ];
-const NAV_ADMIN = {
-  to: "/admin",
-  end: false,
-  Icon: IconShield,
-  label: (l: Lang) => w(l, "navAdmin"),
-};
 /** Bottom tab bar keeps every nav destination, icon-only, sidebar order. */
 const NAV = [NAV_DASHBOARD, ...NAV_LIST, ...NAV_MORE];
 
-type NavItem = (typeof NAV_LIST)[number];
+type NavItem = NavEntry;
 
 /** One sidebar row (prototype .sb-item): icon + label, emerald when active. */
 function SidebarLink({ item, lang }: { item: NavItem; lang: Lang }) {
@@ -152,6 +153,13 @@ export function AppShell() {
       ? "/budget?voice=1"
       : "/expenses?voice=1";
 
+  /*
+   * The shell is one component with two navigation trees. Splitting it into
+   * two shells would duplicate the header, skip link, focus management and
+   * scroll handling above — all of which are role-independent.
+   */
+  const isAdminShell = Boolean(user?.isSuperadmin);
+
   return (
     <div className={`relative min-h-dvh bg-ivory text-ink ${lang === "bn" ? "font-bn" : "font-en"}`}>
       {/* Ambient background mesh providing depth for frosted glass surfaces */}
@@ -181,28 +189,35 @@ export function AppShell() {
       {/* Fluid full-width layout like the frozen prototype (no max-w cap). */}
       <div className="relative z-10 flex w-full">
         <aside className="glass-sidebar sticky top-16 hidden h-[calc(100dvh-4rem)] w-[236px] shrink-0 flex-col px-2.5 py-3 lg:flex">
-          <nav aria-label="Main" className="flex flex-col gap-1">
-            <p className="px-[18px] pb-1 pt-3.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">
-              {w(lang, "menuMain")}
-            </p>
-            <SidebarLink item={NAV_DASHBOARD} lang={lang} />
-            {/* Owner 2026-09-08: NO add-expense row in the sidebar — the
-                floating pencil FAB owns manual add, the mic FAB owns voice. */}
-            {NAV_LIST.map((item) => (
-              <SidebarLink key={item.to} item={item} lang={lang} />
-            ))}
-            <p className="px-[18px] pb-1 pt-3.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">
-              {w(lang, "menuMore")}
-            </p>
-            {NAV_MORE.map((item) => (
-              <SidebarLink key={item.to} item={item} lang={lang} />
-            ))}
-            {user?.isSuperadmin && (
+          <nav aria-label="Main" className="flex flex-col gap-1 overflow-y-auto">
+            {isAdminShell ? (
+              ADMIN_NAV_SECTIONS.map((section) => (
+                <div key={section.title("en")} className="flex flex-col gap-1">
+                  <p className="px-[18px] pb-1 pt-3.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">
+                    {section.title(lang)}
+                  </p>
+                  {section.items.map((item) => (
+                    <SidebarLink key={item.to} item={item} lang={lang} />
+                  ))}
+                </div>
+              ))
+            ) : (
               <>
                 <p className="px-[18px] pb-1 pt-3.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">
-                  {w(lang, "navAdmin")}
+                  {w(lang, "menuMain")}
                 </p>
-                <SidebarLink item={NAV_ADMIN} lang={lang} />
+                <SidebarLink item={NAV_DASHBOARD} lang={lang} />
+                {/* Owner 2026-09-08: NO add-expense row in the sidebar — the
+                    floating pencil FAB owns manual add, the mic FAB owns voice. */}
+                {NAV_LIST.map((item) => (
+                  <SidebarLink key={item.to} item={item} lang={lang} />
+                ))}
+                <p className="px-[18px] pb-1 pt-3.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">
+                  {w(lang, "menuMore")}
+                </p>
+                {NAV_MORE.map((item) => (
+                  <SidebarLink key={item.to} item={item} lang={lang} />
+                ))}
               </>
             )}
           </nav>
@@ -223,7 +238,12 @@ export function AppShell() {
           Scroll-hide (.fadhide parity): slides out of the way while reading
           down, springs back on scroll-up; reduced motion keeps the toggle but
           drops the transition via the app-wide CSS kill-switch. `inert` keeps
-          the hidden buttons out of the tab order. */}
+          the hidden buttons out of the tab order.
+
+          Both FABs exist only to create a hisab entry, which is precisely
+          what a superadmin does not do — so the admin shell renders no FAB
+          column rather than a disabled one. */}
+      {!isAdminShell && (
       <div
         inert={fabHidden}
         aria-hidden={fabHidden}
@@ -254,14 +274,18 @@ export function AppShell() {
           <IconMic className="h-6 w-6" />
         </button>
       </div>
+      )}
 
       <nav
         aria-label="Tabs"
         className="glass-tabbar pb-safe fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around lg:hidden"
       >
         {/* All NAV items fit <1024px by going icon-only:
-            labels live in the accessible name (aria-label) + title tooltip. */}
-        {(user?.isSuperadmin ? [...NAV, NAV_ADMIN] : NAV).map(({ to, end, Icon, label }) => (
+            labels live in the accessible name (aria-label) + title tooltip.
+            The admin tree has eleven rows, which does not fit a phone tab
+            bar, so it shows its four busiest (ADMIN_TAB_BAR) and the rest
+            stay one tap away from /admin's quick-links grid. */}
+        {(isAdminShell ? ADMIN_TAB_BAR : NAV).map(({ to, end, Icon, label }) => (
           <NavLink
             key={to}
             to={to}

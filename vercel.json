@@ -28,7 +28,8 @@
   "functions": {
     "api/index.py": {
       "includeFiles": "apps/api/app/**",
-      "maxDuration": 15
+      "maxDuration": 25,
+      "regions": ["icn1"]
     }
   },
   "rewrites": [

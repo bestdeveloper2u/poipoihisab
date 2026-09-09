@@ -179,3 +179,55 @@ export function IconShield(props: IconProps) {
     </Svg>
   );
 }
+
+/* Admin shell icons (superadmin role split). Same 24px grid, 1.8 stroke. */
+
+export function IconUsers(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M15.5 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H6a3.5 3.5 0 0 0-3.5 3.5V20" />
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M16 11.2a3.2 3.2 0 0 0 0-6.2" />
+      <path d="M18 20v-1.5a3.5 3.5 0 0 0-2.2-3.25" />
+    </Svg>
+  );
+}
+
+export function IconHistory(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1" />
+      <path d="M3.2 4.2v4h4" />
+      <path d="M12 8v4.3l3 1.8" />
+    </Svg>
+  );
+}
+
+export function IconLock(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+      <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+      <path d="M12 14.3v2.2" />
+    </Svg>
+  );
+}
+
+export function IconActivity(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 12h3.6l2.2-6 3.4 12 2.6-8 1.6 2H21" />
+    </Svg>
+  );
+}
+
+export function IconPlug(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 3v5" />
+      <path d="M15 3v5" />
+      <path d="M6.5 8h11v3.2a5.5 5.5 0 0 1-11 0V8z" />
+      <path d="M12 16.7V21" />
+    </Svg>
+  );
+}
