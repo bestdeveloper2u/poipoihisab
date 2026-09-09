@@ -7,7 +7,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)]()
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8.svg)]()
 
-> **পই পই খরচের হিসাব** — Modern, voice-first bilingual (Bengali / English) personal expense tracker, debt manager, and financial planning Progressive Web Application (PWA).
+> **পই পই হিসাব** — Modern, voice-first bilingual (Bengali / English) personal expense tracker, debt manager, and financial planning Progressive Web Application (PWA).
 
 Poi Poi Hisab is built for everyday life in Bangladesh and beyond. Record daily expenses with Bengali voice dictation, track debts, manage monthly budgets, analyze financial reports, and synchronize with Google Sheets — with zero latency and full offline support.
 

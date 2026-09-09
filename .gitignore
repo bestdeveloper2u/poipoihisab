@@ -16,3 +16,5 @@ __pycache__/
 .ruff_cache/
 *.db
 *.sqlite3
+.vercel
+.env*
