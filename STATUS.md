@@ -86,7 +86,7 @@ clipboard failure and a same-component route change; five API cases cover all
 grant combinations and member denial across all four inspector reads.
 
 Validation: regenerated OpenAPI and the TypeScript client; `pnpm verify` passes
-566 web, 10 core, 366 API and 28 audit tests (970 total), with 7 optional API skips,
+567 web, 10 core, 366 API and 28 audit tests (971 total), with 7 optional API skips,
 all 10 audits, both typecheckers and both linters. `pnpm build:web` passes.
 The local Node 24 / temporary Windows Python environment was used; doctor still
 notes the absent root `.env`, and QA used explicit local-only settings instead.
@@ -94,6 +94,14 @@ Restarting the temporary API invalidated its in-memory session; signing in again
 restored QA, and the subsequent browser error/warning log was empty. Screenshots,
 the synthetic database and personal `Claude outputs/` workbooks stay outside the
 commit. Live Google Sheets verification remains open in R3.1–R3.3.
+
+The first hosted Linux run (34445244796) then failed after test teardown: a
+roster success-message timeout still called React after `window` was destroyed.
+This pre-existing timer leak escaped local verification. The debugging pass
+reproduced it with a failing timer-cleanup assertion; the success timeout now
+belongs to an effect that cancels it on message replacement or route unmount.
+This narrowly scoped CI blocker is included in the R2.3 follow-up, not a new
+slice. The new regression passes with cleanup and the full local gates rerun.
 
 ### 2026-09-10 (R2.2) — **A table fitting its container did not mean its dialogs fit.**
 

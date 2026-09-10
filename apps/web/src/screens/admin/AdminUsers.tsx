@@ -88,10 +88,15 @@ export function AdminUsers() {
     };
   }, [lang, searchQuery]);
 
-  const flash = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 4000);
-  };
+  useEffect(() => {
+    if (!success) return;
+    // CI caught this callback running after the roster's environment closed.
+    // Leaving the route or replacing the message must cancel its old timer.
+    const timer = setTimeout(() => setSuccess(null), 4000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
+  const flash = (message: string) => setSuccess(message);
 
   const runAction = async () => {
     if (!confirm) return;

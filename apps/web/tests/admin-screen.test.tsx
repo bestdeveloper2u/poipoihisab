@@ -441,6 +441,30 @@ describe("/admin overview", () => {
 // ---------------------------------------------------------------------------
 
 describe("/admin/users", () => {
+  it("cancels the success timer when leaving the roster", async () => {
+    asSuperAdmin();
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    const view = renderApp("/admin/users");
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await screen.findByText("Rahim Mia");
+      fireEvent.click(screen.getByRole("button", { name: w("bn", "adminSuspend") }));
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: w("bn", "adminSuspend") }));
+      await screen.findByRole("button", { name: w("bn", "adminUnsuspend") });
+      const index = timer.mock.calls.findLastIndex((call) => call[1] === 4000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      flashTimer = timer.mock.results[index].value;
+      view.unmount();
+      expect(clear).toHaveBeenCalledWith(flashTimer);
+    } finally {
+      view.unmount();
+      if (flashTimer !== undefined) clearTimeout(flashTimer);
+      timer.mockRestore();
+      clear.mockRestore();
+    }
+  });
+
   it.each(["bn", "en"] as const)("keeps long identities readable and both confirmations cancellable in %s", async (lang) => {
     asSuperAdmin();
     useLangStore.setState({ lang });
