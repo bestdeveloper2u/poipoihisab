@@ -13,6 +13,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import App from "../src/App";
 import { useAuthStore } from "../src/store/auth";
+import { useLangStore } from "../src/store/lang";
 import { w } from "../src/lib/web-i18n";
 import {
   makeQueryClient,
@@ -440,6 +441,113 @@ describe("/admin overview", () => {
 // ---------------------------------------------------------------------------
 
 describe("/admin/users", () => {
+  it.each(["bn", "en"] as const)("keeps long identities readable and both confirmations cancellable in %s", async (lang) => {
+    asSuperAdmin();
+    useLangStore.setState({ lang });
+    const longName = "A".repeat(120);
+    const fallback = adminHandler();
+    const fetchMock = stubFetch((req, url) => url.pathname === "/api/v1/admin/users"
+      ? makeResponse(200, { items: [{ ...targetRow(), name: longName }], total: 1 })
+      : fallback(req, url));
+    renderApp("/admin/users");
+
+    const nameLink = await screen.findByRole("link", { name: longName });
+    expect(nameLink).toHaveClass("truncate", "min-w-0");
+    expect(nameLink).toHaveAttribute("title", longName);
+    expect(nameLink.parentElement?.parentElement).toHaveClass("max-w-64");
+    expect(screen.getByRole("searchbox")).toHaveAccessibleName(w(lang, "adminSearchPlaceholder"));
+
+    fireEvent.click(screen.getByRole("button", { name: `${w(lang, "adminDelete")} — ${longName}` }));
+    let dialog = await screen.findByRole("dialog", { name: w(lang, "adminDelete") });
+    expect(within(dialog).getByText(longName)).toHaveClass("break-words");
+    fireEvent.click(within(dialog).getByRole("button", { name: w(lang, "cancel") }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: w(lang, "adminSelectUser").replace("{name}", longName) }));
+    const bulkButton = screen.getByRole("button", { name: w(lang, "adminBulkDelete") });
+    expect(bulkButton.parentElement).toHaveClass("flex-wrap", "whitespace-nowrap");
+    expect(bulkButton.closest(".fixed")).toHaveClass("w-[calc(100vw-2rem)]", "sm:w-max");
+    fireEvent.click(bulkButton);
+    dialog = await screen.findByRole("dialog", { name: w(lang, "adminBulkDelete") });
+    expect(within(dialog).getByText(longName)).toHaveClass("min-w-0", "break-words");
+    fireEvent.click(within(dialog).getByRole("button", { name: w(lang, "cancel") }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([request]) => new URL((request as Request).url).pathname.startsWith("/api/v1/admin/users"))
+      .every(([request]) => (request as Request).method === "GET")).toBe(true);
+  });
+
+  it("never selects the acting admin when selecting all", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/users"
+      ? makeResponse(200, { items: [{ ...targetRow(), ...SUPER_ADMIN }, targetRow()], total: 2 })
+      : fallback(req, url));
+    renderApp("/admin/users");
+    const own = await screen.findByRole("checkbox", { name: w("bn", "adminSelectUser").replace("{name}", SUPER_ADMIN.name) });
+    expect(own).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: w("bn", "adminSelectAll") }));
+    expect(own).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: w("bn", "adminSelectUser").replace("{name}", "Rahim Mia") })).toBeChecked();
+  });
+
+  it("clears selection when a search would hide the selected users", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/users" && url.searchParams.get("q")
+      ? makeResponse(200, { items: [{ ...targetRow(), id: "salma", name: "Salma" }], total: 1 })
+      : fallback(req, url));
+    renderApp("/admin/users");
+    fireEvent.click(await screen.findByRole("checkbox", { name: w("bn", "adminSelectUser").replace("{name}", "Rahim Mia") }));
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Salma" } });
+    await screen.findByRole("link", { name: "Salma" });
+    expect(screen.queryByRole("button", { name: w("bn", "adminBulkDelete") })).not.toBeInTheDocument();
+  });
+
+  it("shows loading until the first roster response arrives", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    let finish!: (response: Response) => void;
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/users"
+      ? new Promise<Response>((resolve) => { finish = resolve; }) : fallback(req, url));
+    renderApp("/admin/users");
+    expect(await screen.findByText(w("bn", "loading"))).toBeInTheDocument();
+    finish(makeResponse(200, { items: [], total: 0 }));
+    expect(await screen.findByText(w("bn", "adminNoData"))).toBeInTheDocument();
+  });
+
+  it("drops selections made on stale rows while a search response is pending", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    let finish!: (response: Response) => void;
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/users" && url.searchParams.get("q")
+      ? new Promise<Response>((resolve) => { finish = resolve; }) : fallback(req, url));
+    renderApp("/admin/users");
+    const oldRow = await screen.findByRole("checkbox", { name: w("bn", "adminSelectUser").replace("{name}", "Rahim Mia") });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Salma" } });
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    fireEvent.click(oldRow);
+    finish(makeResponse(200, { items: [{ ...targetRow(), id: "salma", name: "Salma" }], total: 1 }));
+    await screen.findByRole("link", { name: "Salma" });
+    expect(screen.queryByRole("button", { name: w("bn", "adminBulkDelete") })).not.toBeInTheDocument();
+  });
+
+  it("shows an API failure instead of silently presenting an empty roster", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/users"
+      ? makeResponse(503, { detail: "Roster unavailable — please retry" }) : fallback(req, url));
+    renderApp("/admin/users");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Roster unavailable — please retry");
+  });
+
+  it("denies regular users the roster without requesting its data", async () => {
+    useAuthStore.setState({ status: "authed", user: REGULAR_USER, accessToken: "member-token", refreshToken: null });
+    const fetchMock = stubFetch(adminHandler());
+    renderApp("/admin/users");
+    expect(await screen.findByText(w("bn", "adminAccessDenied"))).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([req]) => new URL((req as Request).url).pathname === "/api/v1/admin/users")).toBe(false);
+  });
+
   it("lists registered users", async () => {
     asSuperAdmin();
     renderApp("/admin/users");
@@ -486,7 +594,7 @@ describe("/admin/users", () => {
     renderApp("/admin/users");
 
     expect(await screen.findByText("Rahim Mia")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Select Rahim Mia"));
+    fireEvent.click(screen.getByLabelText(w("bn", "adminSelectUser").replace("{name}", "Rahim Mia")));
 
     expect(screen.getByText(w("bn", "adminBulkSuspend"))).toBeInTheDocument();
     const bulkBar = screen.getByText(w("bn", "adminBulkSuspend")).closest(".fixed");
@@ -507,7 +615,7 @@ describe("/admin/users", () => {
     renderApp("/admin/users");
 
     expect(await screen.findByText("Rahim Mia")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Select Rahim Mia"));
+    fireEvent.click(screen.getByLabelText(w("bn", "adminSelectUser").replace("{name}", "Rahim Mia")));
     fireEvent.click(screen.getByText(w("bn", "adminBulkDelete")));
 
     expect(await screen.findByText(w("bn", "adminBulkConfirmDelete"))).toBeInTheDocument();

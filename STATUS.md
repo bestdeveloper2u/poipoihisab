@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 15 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 16 / 28 · building: **nothing**
 
 ---
 
@@ -30,7 +30,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R1.11** Offline-first shell | PWA | feature |
 | [x]  | **R1.12** Google Sheets sync | `/settings` | feature |
 | [x]  | **R2.1** Admin overview | `/admin` | screen |
-| [!]  | **R2.2** Users roster | `/admin/users` | screen |
+| [x]  | **R2.2** Users roster | `/admin/users` | screen |
 | [!]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
 | [!]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
 | [!]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
@@ -60,6 +60,48 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-10 (R2.2) — **A table fitting its container did not mean its dialogs fit.**
+
+The next-task request closes the oldest admin browser-verification clause. A
+temporary SQLite database supplied eight synthetic accounts, including the acting
+admin, a suspended account, Bengali names and an unbroken 80-character name.
+The roster, floating bulk bar, single-user confirmation and bulk confirmation
+were inspected at 1440, 980 and 375px. The owner approved switching the QA account
+between Bengali and English; no real account or production database was used.
+
+The long name stretched the desktop table and made the phone single-user dialog
+948px wide inside a 358px panel. The bulk dialog acquired a horizontal scrollbar
+inside its affected-user list, while the phone bulk buttons squeezed their labels
+onto multiple lines. Names are now bounded in the table (full text remains in the
+link and title), wrap in both confirmations, and leave IDs their own bounded space.
+The bulk bar uses the available phone width and wraps whole buttons above the tab
+bar. Table-only horizontal scrolling remains intentional; the page and dialogs
+do not overflow. Search and individual selection controls now have translated
+accessible labels.
+
+A regression test also exposed hidden bulk targets after searching: selected IDs
+survived while their names disappeared from the confirmation. Search edits now
+clear selection, and each response removes IDs selected from stale rows during
+the request. The failing test was observed before the fix. Eight added web cases
+cover long identities/cancellation in both languages, self-selection refusal,
+search selection and delayed responses, loading-to-empty, an API error and denied
+member access. Cancellation assertions are scoped to roster mutations so the
+shell's ordinary session-probe POST is not mistaken for a moderation action.
+
+The final browser pass verified search, empty results, restored results, both
+languages, selection and cancellation. The acting admin stayed unselectable;
+dialogs stayed above navigation, and the browser console had no warnings/errors.
+No delete or permission-changing action was submitted through the browser;
+mutation outcomes and server authorization remain covered by the automated tests.
+Screenshots and synthetic data stay outside the repository.
+
+Verification: 559 web, 10 core, 361 API and 28 audit tests; 7 optional API skips.
+All ten audits, both typechecks and linters, and the production build pass.
+OpenAPI/client contracts regenerated unchanged. `doctor` still reports the absent
+root `.env`; the gate used the temporary Windows Python environment. Personal
+workbooks were neither modified nor staged. Other admin and live-Google clauses
+remain open; this session closes R2.2 only.
 
 ### 2026-09-10 (R3.5) — **A release label needs a consistency check.**
 

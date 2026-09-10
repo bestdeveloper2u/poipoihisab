@@ -74,6 +74,8 @@ export function AdminUsers() {
       if (!active) return;
       if (res.ok) {
         setUsers(res.data.items);
+        const visibleIds = new Set(res.data.items.map((user) => user.id));
+        setSelectedIds((prev) => new Set([...prev].filter((id) => visibleIds.has(id))));
         setTotal(res.data.total);
         setError(null);
       } else {
@@ -200,10 +202,14 @@ export function AdminUsers() {
             <IconSearch className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
             <input
               type="search"
+              aria-label={w(lang, "adminSearchPlaceholder")}
               placeholder={w(lang, "adminSearchPlaceholder")}
               defaultValue={searchQuery}
               onChange={(e) => {
                 const val = e.target.value;
+                // Hidden selections left IDs in bulk requests while the
+                // confirmation could only name the newly filtered rows.
+                setSelectedIds(new Set());
                 startTransition(() => setSearchQuery(val));
               }}
               className="w-full rounded-control border border-line/60 bg-surface/70 py-2 pl-9 pr-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-emerald focus:bg-surface focus:ring-2 focus:ring-emerald/20"
@@ -288,7 +294,7 @@ export function AdminUsers() {
                               return next;
                             })
                           }
-                          aria-label={`Select ${u.name}`}
+                          aria-label={w(lang, "adminSelectUser").replace("{name}", u.name)}
                           title={self ? w(lang, "adminSelfActionDenied") : undefined}
                           className="h-4 w-4 cursor-pointer rounded border-line accent-emerald text-emerald focus:ring-emerald disabled:cursor-not-allowed disabled:opacity-30"
                         />
@@ -304,16 +310,17 @@ export function AdminUsers() {
                           >
                             {initial}
                           </Link>
-                          <div className="min-w-0">
+                          <div className="min-w-0 max-w-64">
                             <div className="flex items-center gap-1.5">
                               <Link
                                 to={`/admin/users/${u.id}`}
-                                className="text-left font-semibold text-ink hover:text-emerald hover:underline"
+                                title={u.name}
+                                className="min-w-0 truncate text-left font-semibold text-ink hover:text-emerald hover:underline"
                               >
                                 {u.name}
                               </Link>
                               {u.isSuperadmin && (
-                                <span className="rounded-full bg-emerald/15 px-2 py-0.5 text-[10px] font-bold text-emerald">
+                                <span className="shrink-0 rounded-full bg-emerald/15 px-2 py-0.5 text-[10px] font-bold text-emerald">
                                   {w(lang, "adminSuperAdminBadge")}
                                 </span>
                               )}
@@ -452,13 +459,13 @@ export function AdminUsers() {
                   {(confirm.user.name.trim()[0] ?? "U").toUpperCase()}
                 </span>
                 <div className="min-w-0">
-                  <p className="font-semibold text-ink">{confirm.user.name}</p>
+                  <p className="break-words font-semibold text-ink">{confirm.user.name}</p>
                   {confirm.user.email && (
                     <p className="truncate font-en text-xs text-muted">{confirm.user.email}</p>
                   )}
                 </div>
               </div>
-              <p className="mt-2 border-t border-line/40 pt-2 font-mono text-[11px] text-muted">
+              <p className="mt-2 break-all border-t border-line/40 pt-2 font-mono text-[11px] text-muted">
                 ID: {confirm.user.id}
               </p>
             </div>
@@ -496,7 +503,7 @@ export function AdminUsers() {
 
       {/* Floating bulk bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex max-w-[94vw] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-card border border-line/70 bg-surface/95 px-4 py-2.5 shadow-2xl backdrop-blur-md sm:gap-3.5 sm:rounded-full sm:px-5 sm:py-3 lg:bottom-6">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100vw-2rem)] max-w-[94vw] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-card border border-line/70 bg-surface/95 px-4 py-2.5 shadow-2xl backdrop-blur-md sm:w-max sm:gap-3.5 sm:rounded-full sm:px-5 sm:py-3 lg:bottom-6">
           <div className="flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald text-xs font-bold text-accent-ink">
               {num(selectedIds.size, lang)}
@@ -506,7 +513,7 @@ export function AdminUsers() {
             </span>
           </div>
           <div className="hidden h-4 w-px bg-line/60 sm:block" />
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-nowrap sm:gap-2">
             <button
               type="button"
               onClick={() => openBulk("suspend")}
@@ -588,9 +595,9 @@ export function AdminUsers() {
               </div>
               <div className="mt-2 max-h-44 divide-y divide-line/30 overflow-y-auto pr-1 text-xs">
                 {bulkConfirm.userNames.map((name, i) => (
-                  <div key={bulkConfirm.userIds[i]} className="flex items-center justify-between py-1.5">
-                    <span className="font-semibold text-ink">{name}</span>
-                    <span className="max-w-[140px] truncate font-mono text-[10px] text-muted">
+                  <div key={bulkConfirm.userIds[i]} className="flex min-w-0 items-start justify-between gap-2 py-1.5">
+                    <span className="min-w-0 flex-1 break-words font-semibold text-ink">{name}</span>
+                    <span className="w-24 shrink-0 truncate font-mono text-[10px] text-muted sm:w-36">
                       {bulkConfirm.userIds[i]}
                     </span>
                   </div>

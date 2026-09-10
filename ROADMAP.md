@@ -252,6 +252,10 @@ bulk bar.
 refuses self-suspend and self-delete and offering the checkbox would only
 mislead; bulk delete is capped at 100 targets per call and five calls per minute
 per admin.
+Long names are bounded in the table and wrap fully in confirmations; bulk controls
+wrap above the mobile tab bar. Search changes clear selection, and new results drop
+any IDs selected from stale rows while the request was pending. Moderation is
+online-only: do not queue account suspension/deletion for a later outbox replay.
 **Data** — `/admin/users`, `profiles`.
 **Done** — a bulk delete of 101 ids is refused with a message naming the limit,
 proven by `test_admin_oversight.py`.
