@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.4, pulled forward on request) · slices done: 14 / 27 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 15 / 28 · building: **nothing**
 
 ---
 
@@ -44,6 +44,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
 | [!]  | **R3.3** Multi-year Sheets ledger | `POST /export/sheets` | endpoint |
 | [x]  | **R3.4** Continuous integration | GitHub Actions | workflow |
+| [x]  | **R3.5** Consistent release labels | `/settings` | maintenance |
 
 <!--
 Keep the counter above in step with the ticked boxes — the audit compares them.
@@ -59,6 +60,42 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-10 (R3.5) — **A release label needs a consistency check.**
+
+The next-task request selects the version-label backlog item. The mismatch was
+larger than the visible `v0.6.0` chip: the shared and Python packages still said
+`0.3.0`, and mobile's missing-Expo fallback said `0.9.0-dev`. All committed release
+metadata now agrees with the existing web/API release, `0.28.0`. Mobile still
+prefers packaged Expo metadata, with the shared release as its fallback. Explicit
+API runtime version overrides remain supported; `.env.example` now explains that
+they do not relabel a built frontend. No native build numbers or deployment settings
+changed, and no dependency versions were upgraded.
+
+The new audit checks eleven surfaces, including the Python lockfile and OpenAPI.
+It immediately caught the old editable-package version in `uv.lock`; refreshing
+that metadata changed only the package's version. Twenty-eight Node built-in tests
+exercise every source's drift/missing cases, malformed declarations, coordinated
+bumps, CRLF and a real CLI invocation outside the repository root. That last test
+also proves the path invariant flagged by the existing test-path audit; none of
+the audit rules were weakened. Two Settings tests cover the shared label in both
+languages, and an API test preserves explicit runtime overrides.
+
+Browser QA used a temporary SQLite database and synthetic account, not the owner's
+ledger. The first registration exposed missing tables in this fresh QA database;
+creating its test schema resolved setup without changing application startup.
+Settings was viewed at 1440, 980 and 375px; Bengali-to-English interaction retained
+`v0.28.0`, both header and footer labels were visible, and no horizontal overflow,
+framework overlay or browser warning/error was observed. Screenshots are outside
+the repository. Native execution was not attempted; Expo metadata is audited and
+the mobile typecheck passes, as scoped in the plan.
+
+The complete gate passes: 28 audit tests, all ten audits, 551 web, 10 core and
+361 API tests, with 7 optional API skips; both typechecks and linters pass. The
+production web build passes, and regenerated OpenAPI/client contracts are unchanged.
+Root `.env` remains absent (`doctor` reports it); verification used the temporary
+Windows Python environment. Personal workbook files remain untouched and untracked.
+Live Google workbook clauses remain open and are not part of this slice.
 
 ### 2026-09-09 (R3.4) — **The gate needs a fresh runner.**
 

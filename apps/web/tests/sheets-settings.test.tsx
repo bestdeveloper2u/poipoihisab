@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { APP_VERSION } from "@poipoihisab/core";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,6 +48,16 @@ beforeEach(() => {
   calls.POST.mockResolvedValue({ data: synced({ rows: 3 }) });
 });
 afterEach(cleanup);
+
+describe("Settings release label", () => {
+  it.each(["en", "bn"] as const)("shows the shared build version in %s", async (lang) => {
+    useLangStore.setState({ lang });
+    mount();
+    expect(screen.getByText(`v${APP_VERSION}`)).toBeInTheDocument();
+    // Settle the asynchronous status query before unmounting.
+    await screen.findByText(/export@example.iam.gserviceaccount.com/);
+  });
+});
 
 describe("Sheets settings card", () => {
   it("shows sharing instructions, persists input and exports the current month", async () => {

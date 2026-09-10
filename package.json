@@ -22,8 +22,9 @@
     "test:api": "uv --directory apps/api run pytest -q",
     "openapi": "uv --directory apps/api run python scripts/dump_openapi.py",
     "audit": "node scripts/audit.mjs",
+    "test:audits": "node --test scripts/tests/*.test.mjs",
     "doctor": "node scripts/doctor.mjs",
     "wip": "node scripts/wip-snapshot.mjs",
-    "verify": "node scripts/audit.mjs && pnpm typecheck:web && pnpm typecheck:mobile && pnpm lint:web && pnpm test:core && pnpm test:web && pnpm lint:api && pnpm test:api"
+    "verify": "pnpm test:audits && node scripts/audit.mjs && pnpm typecheck:web && pnpm typecheck:mobile && pnpm lint:web && pnpm test:core && pnpm test:web && pnpm lint:api && pnpm test:api"
   }
 }

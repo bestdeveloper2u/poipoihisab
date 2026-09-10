@@ -356,6 +356,24 @@ server {
 
 ## 🧪 Testing & Quality Assurance
 
+### Release labels
+
+`apps/web/package.json` is the committed release-version reference (currently
+`0.28.0`). Bump the workspace package versions, `packages/core/src/brand.ts`,
+`apps/mobile/app.json`, `apps/api/pyproject.toml`, the API settings default and
+`.env.example` together, then run `uv --directory apps/api lock`, `pnpm openapi`
+and `pnpm generate:client` to refresh derived metadata. `pnpm run audit` checks
+all eleven surfaces; `pnpm test:audits` tests the guard itself.
+
+Web labels use the shared build version; mobile prefers Expo's packaged version
+and falls back to the shared value when Expo metadata is absent. An explicit
+`POIPOIHISAB_VERSION` remains a valid API-only runtime override, reported by
+health/system endpoints; it does not relabel an already-built frontend. Real
+environment files are not read by this audit. Release labels are not native
+build numbers, and aligning them does not publish an app-store release.
+
+### Verification gates
+
 The codebase includes strict automated test gates:
 
 [GitHub Actions: Verify](https://github.com/bestdeveloper2u/poipoihisab/actions/workflows/verify.yml)
@@ -407,6 +425,7 @@ cd apps/api && uv run pytest
 | `pnpm typecheck:web` | Runs TypeScript `tsc --noEmit` on the web application |
 | `pnpm typecheck:mobile` | Runs TypeScript `tsc --noEmit` on the mobile application |
 | `pnpm test:core` | Executes unit tests for shared core helpers and i18n dictionaries |
+| `pnpm test:audits` | Tests the release-version audit with passing and failing fixtures |
 | `pnpm generate:client` | Re-generates typed OpenAPI client from `apps/api/openapi.json` |
 
 ---

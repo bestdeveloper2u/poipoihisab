@@ -27,10 +27,15 @@ reports success having checked nothing this repo cares about.
 | `audit-test-paths.mjs` | a spec that resolves a repo file relative to the working directory instead of its own location |
 | `audit-test-wiring.mjs` | a test config that is unscoped, does not exclude build output, or carries `--passWithNoTests` while specs exist |
 | `audit-vocabulary.mjs` | the wrong word for a concept, anywhere, including comments |
+| `audit-version.mjs` | committed release metadata differs from the web package, or is missing/malformed; checks all workspace packages, shared UI, Expo, Python package/lock, API default, environment example and OpenAPI without reading real `.env` files |
 | `doctor.mjs` | not an audit — every toolchain problem in one report, each with its fix |
 | `wip-snapshot.mjs` | not an audit — snapshots the working tree to a git ref without touching HEAD, the index, or any file |
 
 ## Rules for adding your own
+
+`pnpm test:audits` runs the audit guard's Node built-in regression tests before
+the audits in `pnpm verify`. The version tests deliberately drift or remove each
+source, reject malformed declarations, and accept a coordinated version bump.
 
 1. **Wire it into `verify`, or it does not exist.** An audit nobody runs is a
    file.

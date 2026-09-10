@@ -973,7 +973,7 @@ wheels = [
 
 [[package]]
 name = "poipoihisab-api"
-version = "0.3.0"
+version = "0.28.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

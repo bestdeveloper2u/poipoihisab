@@ -1,4 +1,4 @@
-import { BRAND_NAME, toBnDigits } from "@poipoihisab/core";
+import { APP_VERSION as RELEASE_VERSION, BRAND_NAME, toBnDigits } from "@poipoihisab/core";
 import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -24,8 +24,8 @@ import type { ThemeColors, ThemeMode } from "../lib/theme";
 import { theme } from "../lib/theme";
 import { useToast } from "../lib/toast";
 
-/** App version from the Expo config (app.json), with a dev fallback. */
-const APP_VERSION = Constants.expoConfig?.version ?? "0.9.0-dev";
+/** Native build metadata wins; a missing Expo config uses the shared release. */
+const APP_VERSION = Constants.expoConfig?.version ?? RELEASE_VERSION;
 
 /** daily-hisab-backup-YYYYMMDD.json from the device's LOCAL date (T21.3). */
 function backupFilename(now: Date): string {

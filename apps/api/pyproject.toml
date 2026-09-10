@@ -1,6 +1,6 @@
 [project]
 name = "poipoihisab-api"
-version = "0.3.0"
+version = "0.28.0"
 description = "Poi Poi Hisab — FastAPI backend (SQLAlchemy 2 async + Alembic)"
 requires-python = ">=3.12"
 dependencies = [

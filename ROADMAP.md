@@ -445,12 +445,33 @@ remain skipped unless their prerequisites are supplied. Making the checks requir
 for merging is a separate owner-controlled repository-policy decision; this slice
 does not change branch protection or gate Vercel deployment.
 
+**R3.5 Consistent release labels** · `/settings`, Expo metadata and API package
+
+**UI** — the existing web version chip and mobile version footer identify the
+same committed release as the web package: `0.28.0`. No layout or translation
+changes. Version strings are build metadata, not ledger values; retain their
+machine-readable form in both languages. No new loading, error or permission state.
+**Does** — align shared UI, workspace package, Expo and Python package versions;
+use the shared release value when Expo metadata is unavailable. Audit committed
+release surfaces against `apps/web/package.json`, including the API default,
+example environment, OpenAPI and Python lockfile. Missing, malformed or drifting
+versions fail verification. Explicit API runtime version overrides remain valid.
+No native build-number increment, app-store submission or deployment-setting change.
+**Data** — committed build metadata only. No API contract change or mutation,
+authorization change, migration or outbox work; the static label also works offline.
+**Done** — the audit has failing-case tests for every source and accepts a
+coordinated release bump. Both language Settings tests pass, the web label is
+viewed at 1440 / 980 / 375px, mobile typechecks, contracts regenerate unchanged,
+and the complete gate and production web build pass. Native device execution is
+outside this metadata-only slice; Expo metadata is checked statically.
+
 ## Part 6 — Verification
 
 `pnpm verify` is the gate and runs, in order:
 
 | Layer | Command | What it proves |
 |---|---|---|
+| Audit tests | `pnpm test:audits` | version guard accepts coordinated changes and rejects drift or missing declarations |
 | Invariants | `node scripts/audit.mjs` | every audit in `scripts/`, one exit code |
 | Web types | `pnpm typecheck:web` | `tsc --noEmit` across `apps/web` |
 | Mobile types | `pnpm typecheck:mobile` | `tsc --noEmit` across `apps/mobile` |

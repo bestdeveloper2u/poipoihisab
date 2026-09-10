@@ -2,7 +2,7 @@
   "expo": {
     "name": "Poi Poi Hisab",
     "slug": "dailypoipoihisab",
-    "version": "0.6.0",
+    "version": "0.28.0",
     "scheme": "poipoihisab",
     "orientation": "portrait",
     "userInterfaceStyle": "light",

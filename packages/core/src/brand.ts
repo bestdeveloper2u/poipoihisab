@@ -53,4 +53,5 @@ export const CSS_VARS: Record<string, string> = {
   "--dk-radius-control": `${RADII.control}px`,
 };
 
-export const APP_VERSION = "0.6.0";
+/** Release label; audit-version.mjs keeps committed consumers in sync. */
+export const APP_VERSION = "0.28.0";
