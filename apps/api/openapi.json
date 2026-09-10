@@ -876,6 +876,17 @@
       "AdminUserDetailOut": {
         "description": "Comprehensive user data summary for superadmins.",
         "properties": {
+          "adminSources": {
+            "items": {
+              "enum": [
+                "database",
+                "environment"
+              ],
+              "type": "string"
+            },
+            "title": "Adminsources",
+            "type": "array"
+          },
           "budget": {
             "anyOf": [
               {

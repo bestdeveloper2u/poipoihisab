@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -75,6 +76,9 @@ class AdminUserDetailOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     user: AdminUserItemOut
+    admin_sources: list[Literal["database", "environment"]] = Field(
+        default_factory=list, alias="adminSources"
+    )
     total_lend: str = Field(default="0.00", alias="totalLend")
     total_borrow: str = Field(default="0.00", alias="totalBorrow")
     net_debt: str = Field(default="0.00", alias="netDebt")

@@ -268,6 +268,12 @@ proven by `test_admin_oversight.py`.
 user and the back button behaves; this is the only screen that reads one user's
 individual rows.
 **Data** — the four `/admin/users/{id}/*` endpoints.
+The detail response includes `adminSources` (database, environment, or both);
+record-request failures appear in their own tabs rather than as zero records.
+Long identities and budget values wrap; expense groups, recurring frequency,
+paused state and dates use the selected language. Failed ID copies report failure.
+Moderation is online-only: revoke, suspend and delete must use current server
+permissions and cannot be replayed later from an offline outbox.
 **Done** — revoking sessions signs the user out everywhere and they can log
 straight back in, proven by `test_admin_oversight.py`.
 

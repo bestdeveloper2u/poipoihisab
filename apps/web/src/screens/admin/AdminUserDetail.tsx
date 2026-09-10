@@ -37,6 +37,7 @@ import {
   IconTrash,
   IconWallet,
 } from "../../components/icons";
+import { groupName } from "../../lib/catalog";
 import { fmtTaka } from "../../lib/money";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
@@ -47,6 +48,7 @@ import { AdminBanner, AdminCard, AdminEmpty, AdminLoading } from "./shared";
 
 type Tab = "expenses" | "debts" | "budgets" | "recurring";
 type PendingAction = "suspend" | "unsuspend" | "delete" | "revoke";
+const frequencyLabels = { daily: "rFreqDaily", weekly: "rFreqWeekly", monthly: "rFreqMonthly", yearly: "rFreqYearly" } as const;
 
 export function AdminUserDetail() {
   const lang = useLangStore((s) => s.lang);
@@ -65,6 +67,7 @@ export function AdminUserDetail() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [recordErrors, setRecordErrors] = useState<Partial<Record<Tab, string>>>({});
 
   usePageTitle(detail?.user.name ?? w(lang, "adminInspectTitle"));
 
@@ -73,6 +76,17 @@ export function AdminUserDetail() {
     let active = true;
     void (async () => {
       setLoading(true);
+      // A failed request for the next user must never retain the previous
+      // user's identity or records under the new URL.
+      setDetail(null);
+      setExpenses(null);
+      setDebts(null);
+      setRecurring(null);
+      setError(null);
+      setRecordErrors({});
+      setPending(null);
+      setSuccess(null);
+      setCopied(false);
       const [d, e, db, r] = await Promise.all([
         apiAdminGetUser(userId, lang),
         apiAdminGetUserExpenses(userId, { limit: 50 }, lang),
@@ -85,6 +99,11 @@ export function AdminUserDetail() {
       if (e.ok) setExpenses(e.data);
       if (db.ok) setDebts(db.data);
       if (r.ok) setRecurring(r.data);
+      setRecordErrors({
+        ...(!e.ok && { expenses: e.detail }),
+        ...(!db.ok && { debts: db.detail }),
+        ...(!r.ok && { recurring: r.detail }),
+      });
       setLoading(false);
     })();
     return () => {
@@ -149,10 +168,10 @@ export function AdminUserDetail() {
   const u = detail.user;
   const isSelf = u.id === currentUser?.id || (!!u.email && u.email === currentUser?.email);
   const tabs: Array<{ id: Tab; label: string; count?: number }> = [
-    { id: "expenses", label: w(lang, "adminTabExpenses"), count: expenses?.items.length ?? 0 },
-    { id: "debts", label: w(lang, "adminTabDebts"), count: debts?.items.length ?? 0 },
+    { id: "expenses", label: w(lang, "adminTabExpenses"), count: expenses?.items.length },
+    { id: "debts", label: w(lang, "adminTabDebts"), count: debts?.items.length },
     { id: "budgets", label: w(lang, "adminTabBudgets") },
-    { id: "recurring", label: w(lang, "adminTabRecurring"), count: recurring?.items.length ?? 0 },
+    { id: "recurring", label: w(lang, "adminTabRecurring"), count: recurring?.items.length },
   ];
 
   const confirmCopy: Record<PendingAction, { title: string; body: string; cta: string }> = {
@@ -196,7 +215,7 @@ export function AdminUserDetail() {
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-xl font-bold text-ink">{u.name}</h1>
+                <h1 className="min-w-0 max-w-full break-words text-xl font-bold text-ink">{u.name}</h1>
                 {u.isSuperadmin && (
                   <span className="rounded-full bg-emerald/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald">
                     {w(lang, "adminSuperAdminBadge")}
@@ -215,15 +234,23 @@ export function AdminUserDetail() {
                     : w(lang, "adminStatusActive")}
                 </span>
               </div>
-              <p className="mt-0.5 font-en text-xs text-muted">{u.email ?? "No email"}</p>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-control border border-line/60 bg-surface-2/60 px-2.5 py-1 text-xs">
-                <span className="select-all font-mono text-muted">ID: {u.id}</span>
+              <p className="mt-0.5 break-all font-en text-xs text-muted">{u.email ?? "—"}</p>
+              {(detail.adminSources ?? []).length > 0 && <p className="mt-1 text-xs text-muted">
+                {w(lang, "adminRoleSource")}: {(detail.adminSources ?? []).map((source) => w(lang, source === "database" ? "adminRoleSourceDb" : "adminRoleSourceEnv")).join(" + ")}
+              </p>}
+              <div className="mt-2 inline-flex max-w-full flex-wrap items-center gap-2 rounded-control border border-line/60 bg-surface-2/60 px-2.5 py-1 text-xs">
+                <span className="min-w-0 select-all break-all font-mono text-muted">ID: {u.id}</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(u.id).catch(() => {});
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1800);
+                  onClick={async () => {
+                    setCopied(false);
+                    try {
+                      await navigator.clipboard.writeText(u.id);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1800);
+                    } catch {
+                      setError(w(lang, "adminCopyFailed"));
+                    }
                   }}
                   className="font-semibold text-emerald transition-colors hover:underline"
                 >
@@ -243,7 +270,7 @@ export function AdminUserDetail() {
           </div>
 
           {!isSelf && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:max-w-[45%]">
               {/* Sign-out-everywhere sits beside suspend on purpose: it is the
                   right tool for a lost device, where suspending would also
                   lock the user out of their own hisab. */}
@@ -289,9 +316,9 @@ export function AdminUserDetail() {
             { label: lang === "bn" ? "নিট" : "Net", value: fmtTaka(detail.netDebt, lang) },
             { label: w(lang, "adminTabRecurring"), value: num(u.recurringCount, lang) },
           ].map((cell) => (
-            <div key={cell.label} className="rounded-control bg-surface-2/50 p-2.5">
+            <div key={cell.label} className="min-w-0 rounded-control bg-surface-2/50 p-2.5">
               <span className="text-[11px] font-semibold text-muted">{cell.label}</span>
-              <p className="mt-1 text-base font-extrabold tabular-nums text-ink">{cell.value}</p>
+              <p className="mt-1 break-words text-base font-extrabold tabular-nums text-ink">{cell.value}</p>
             </div>
           ))}
         </div>
@@ -324,6 +351,7 @@ export function AdminUserDetail() {
         </div>
 
         <div className="p-3 sm:p-4">
+          {recordErrors[tab] ? <AdminBanner tone="error">{recordErrors[tab]}</AdminBanner> : <>
           {tab === "expenses" &&
             (expenses && expenses.items.length > 0 ? (
               <div className="overflow-x-auto rounded-card border border-line/40">
@@ -344,7 +372,7 @@ export function AdminUserDetail() {
                         <td className="whitespace-nowrap px-3.5 py-2.5 font-medium text-ink">
                           {exp.cat}
                         </td>
-                        <td className="whitespace-nowrap px-3.5 py-2.5 text-muted">{exp.grp}</td>
+                        <td className="whitespace-nowrap px-3.5 py-2.5 text-muted">{groupName(exp.grp, lang)}</td>
                         <td className="max-w-[14rem] truncate px-3.5 py-2.5 text-muted">
                           {exp.desc ?? "—"}
                         </td>
@@ -433,7 +461,7 @@ export function AdminUserDetail() {
                   <span className="text-xs font-semibold text-muted">
                     {lang === "bn" ? "মাসিক মোট বাজেট" : "Monthly total budget"}
                   </span>
-                  <p className="mt-1 text-2xl font-extrabold tabular-nums text-ink">
+                  <p className="mt-1 break-words text-2xl font-extrabold tabular-nums text-ink">
                     {fmtTaka(detail.budget.total, lang)}
                   </p>
                 </div>
@@ -446,7 +474,7 @@ export function AdminUserDetail() {
                       {Object.entries(detail.budget.cats).map(([cat, limit]) => (
                         <div
                           key={cat}
-                          className="rounded-control border border-line/40 bg-surface-2/50 p-3"
+                          className="min-w-0 break-words rounded-control border border-line/40 bg-surface-2/50 p-3"
                         >
                           <span className="text-xs font-medium text-muted">{cat}</span>
                           <p className="mt-1 font-bold tabular-nums text-ink">
@@ -479,8 +507,8 @@ export function AdminUserDetail() {
                     {recurring.items.map((rule) => (
                       <tr key={rule.id} className="transition-colors hover:bg-surface-2/30">
                         <td className="px-3.5 py-2.5 font-medium text-ink">{rule.cat}</td>
-                        <td className="px-3.5 py-2.5 text-muted">{rule.freq}</td>
-                        <td className="px-3.5 py-2.5 text-muted">{rule.next_run}</td>
+                        <td className="px-3.5 py-2.5 text-muted">{w(lang, frequencyLabels[rule.freq])}</td>
+                        <td className="px-3.5 py-2.5 text-muted">{num(rule.next_run, lang)}</td>
                         <td className="px-3.5 py-2.5">
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -489,7 +517,7 @@ export function AdminUserDetail() {
                                 : "bg-muted/15 text-muted"
                             }`}
                           >
-                            {rule.active ? w(lang, "adminStatusActive") : w(lang, "rActive")}
+                            {rule.active ? w(lang, "adminStatusActive") : w(lang, "rPaused")}
                           </span>
                         </td>
                         <td className="px-3.5 py-2.5 text-right font-bold tabular-nums text-ink">
@@ -503,10 +531,11 @@ export function AdminUserDetail() {
             ) : (
               <AdminEmpty icon={IconRepeat} messageKey="adminNoData" lang={lang} />
             ))}
+          </>}
         </div>
       </div>
 
-      {expenses && expenses.total > expenses.items.length && (
+      {tab === "expenses" && expenses && expenses.total > expenses.items.length && (
         <AdminCard>
           <p className="text-xs text-muted">
             {lang === "bn"
@@ -548,9 +577,9 @@ export function AdminUserDetail() {
                 <p className="mt-1 text-sm leading-relaxed text-muted">
                   {confirmCopy[pending].body}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-ink">
+                <p className="mt-2 break-words text-sm font-semibold text-ink">
                   {u.name}
-                  {u.email && <span className="ml-1 font-en text-xs text-muted">{u.email}</span>}
+                  {u.email && <span className="ml-1 break-all font-en text-xs text-muted">{u.email}</span>}
                 </p>
               </div>
             </div>

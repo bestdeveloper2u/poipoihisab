@@ -500,6 +500,14 @@ async def get_admin_user_detail(
 
     return AdminUserDetailOut(
         user=user_item,
+        adminSources=[
+            source for source, enabled in (
+                ("database", profile.is_superadmin),
+                ("environment", bool(profile.email) and profile.email.lower() in {
+                    email.lower() for email in get_settings().superadmin_emails
+                }),
+            ) if enabled
+        ],
         totalLend=_money_str(total_lend),
         totalBorrow=_money_str(total_borrow),
         netDebt=_money_str(net_debt),

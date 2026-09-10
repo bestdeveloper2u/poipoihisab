@@ -49,6 +49,32 @@ async def _expense(client: AsyncClient, headers: dict[str, str], **over: object)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("database,environment", [(False, False), (True, False), (False, True), (True, True)])
+async def test_inspector_reports_actual_grant_sources(client: AsyncClient, database: bool, environment: bool) -> None:
+    admin_headers, _ = await _admin(client)
+    _, target_id = await _register(client, "sources@test.dev")
+    if database:
+        result = await client.post(f"/api/v1/admin/users/{target_id}/role", headers=admin_headers, json={"superadmin": True})
+        assert result.status_code == 200
+    if environment:
+        get_settings().superadmin_emails.append("SOURCES@TEST.DEV")
+    result = await client.get(f"/api/v1/admin/users/{target_id}", headers=admin_headers)
+    assert result.status_code == 200
+    expected = (["database"] if database else []) + (["environment"] if environment else [])
+    assert result.json()["adminSources"] == expected
+    assert result.json()["user"]["isSuperadmin"] is (database or environment)
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_read_any_inspector_endpoint(client: AsyncClient) -> None:
+    _, admin_id = await _admin(client)
+    member_headers, _ = await _register(client, "inspector-member@test.dev")
+    for suffix in ("", "/expenses", "/debts", "/recurring"):
+        result = await client.get(f"/api/v1/admin/users/{admin_id}{suffix}", headers=member_headers)
+        assert result.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_stats_exposes_the_activity_fields_the_ui_labels(client: AsyncClient) -> None:
     """The web dict shipped an "active (30 days)" label with no field behind it."""
     admin_headers, _ = await _admin(client)

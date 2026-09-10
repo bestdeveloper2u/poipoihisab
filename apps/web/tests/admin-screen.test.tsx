@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
+import { Link, MemoryRouter } from "react-router";
 import App from "../src/App";
 import { useAuthStore } from "../src/store/auth";
 import { useLangStore } from "../src/store/lang";
@@ -633,6 +633,90 @@ describe("/admin/users", () => {
 // ---------------------------------------------------------------------------
 
 describe("/admin/users/:userId", () => {
+  it.each(["expenses", "debts", "recurring"] as const)("shows a failed %s request as an error, not empty records", async (record) => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) => url.pathname === `/api/v1/admin/users/${TARGET}/${record}`
+      ? makeResponse(503, { detail: `${record} unavailable` }) : fallback(req, url));
+    renderApp(`/admin/users/${TARGET}`);
+    await screen.findByRole("heading", { name: "Rahim Mia" });
+    const label = { expenses: "adminTabExpenses", debts: "adminTabDebts", recurring: "adminTabRecurring" } as const;
+    const recordTab = screen.getByRole("tab", { name: w("bn", label[record]) });
+    fireEvent.click(recordTab);
+    expect(screen.getByRole("alert")).toHaveTextContent(`${record} unavailable`);
+    expect(screen.queryByText(w("bn", "adminNoData"))).not.toBeInTheDocument();
+  });
+
+  it.each(["bn", "en"] as const)("wraps identity and budget values, and labels paused rules correctly in %s", async (lang) => {
+    asSuperAdmin();
+    useLangStore.setState({ lang });
+    const fallback = adminHandler();
+    const longName = "A".repeat(120);
+    const longEmail = "e".repeat(200) + "@example.invalid";
+    stubFetch(async (req, url) => {
+      const response = await fallback(req, url);
+      if (url.pathname === `/api/v1/admin/users/${TARGET}`) {
+        const body = await response.json();
+        body.user.name = longName;
+        body.user.email = longEmail;
+        body.user.isSuperadmin = true;
+        body.adminSources = ["database", "environment"];
+        body.budget.cats = { [longName]: "9999999999.99" };
+        return makeResponse(200, body);
+      }
+      if (url.pathname === `/api/v1/admin/users/${TARGET}/recurring`) {
+        const body = await response.json();
+        body.items[0].active = false;
+        return makeResponse(200, body);
+      }
+      return response;
+    });
+    renderApp(`/admin/users/${TARGET}`);
+    expect(await screen.findByRole("heading", { name: longName })).toHaveClass("max-w-full", "break-words");
+    expect(screen.getByText(longEmail)).toHaveClass("break-all");
+    expect(screen.getByText(new RegExp(w(lang, "adminRoleSourceDb")))).toHaveTextContent(w(lang, "adminRoleSourceEnv"));
+    expect(screen.getByRole("cell", { name: lang === "bn" ? "খাদ্য ও মুদি" : "Food & Groceries" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: w(lang, "adminDelete") }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(longEmail)).toHaveClass("break-all");
+    fireEvent.click(within(dialog).getByRole("button", { name: w(lang, "cancel") }));
+    fireEvent.click(screen.getByRole("tab", { name: new RegExp(w(lang, "adminTabRecurring")) }));
+    expect(screen.getByText(w(lang, "rPaused"))).toBeInTheDocument();
+    expect(screen.getByText(w(lang, "rFreqMonthly"))).toBeInTheDocument();
+    expect(screen.getByText(lang === "bn" ? "২০২৬-১০-০১" : "2026-10-01")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: w(lang, "adminTabBudgets") }));
+    expect(screen.getByText(longName, { selector: "span" }).parentElement).toHaveClass("min-w-0", "break-words");
+  });
+
+  it("reports a clipboard rejection without claiming success", async () => {
+    asSuperAdmin();
+    const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) } });
+    try {
+      renderApp(`/admin/users/${TARGET}`);
+      fireEvent.click(await screen.findByRole("button", { name: "কপি করুন" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(w("bn", "adminCopyFailed"));
+      expect(screen.queryByText("✓ কপি হয়েছে!")).not.toBeInTheDocument();
+    } finally {
+      if (original) Object.defineProperty(navigator, "clipboard", original);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
+
+  it("does not retain another user's identity after a failed route change", async () => {
+    asSuperAdmin();
+    render(<QueryClientProvider client={makeQueryClient()}>
+      <MemoryRouter initialEntries={[`/admin/users/${TARGET}`]}>
+        <Link to="/admin/users/missing-user">Next test user</Link>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>);
+    await screen.findByRole("heading", { name: "Rahim Mia" });
+    fireEvent.click(screen.getByRole("link", { name: "Next test user" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("not found");
+    expect(screen.queryByRole("heading", { name: "Rahim Mia" })).not.toBeInTheDocument();
+  });
+
   it("opens from the roster and shows the user's records by tab", async () => {
     asSuperAdmin();
     renderApp("/admin/users");

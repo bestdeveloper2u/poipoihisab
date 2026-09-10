@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 16 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 17 / 28 · building: **nothing**
 
 ---
 
@@ -31,7 +31,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R1.12** Google Sheets sync | `/settings` | feature |
 | [x]  | **R2.1** Admin overview | `/admin` | screen |
 | [x]  | **R2.2** Users roster | `/admin/users` | screen |
-| [!]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
+| [x]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
 | [!]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
 | [!]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
 | [!]  | **R2.6** Data import and export | `/admin/data` | screen |
@@ -60,6 +60,40 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-10 (R2.3) — **An empty tab was sometimes a failed request.**
+
+The next-task request closes the inspector's browser-verification clause. The
+local synthetic QA database supplied an 80-character unbroken name, a long email,
+expenses, receivable/payable debts, a maximum-size budget and a paused recurring
+rule. The identity, eight summary cells and all four populated tabs were viewed
+at 1440, 980 and 375px, with Bengali and English checked. The phone document had
+been 890px wide; wrapping identity and money now keeps it within the viewport
+(360px content at 375px). Table-only horizontal scrolling remains intentional.
+All three moderation confirmations fit the phone and were cancelled; no browser
+moderation action was submitted. Back navigation and the empty self-inspector
+were also checked, including both database and environment grant sources.
+
+The promised grant source had no field behind it. The additive `adminSources`
+contract now reports both sources using the same case-insensitive allowlist
+semantics as authorization; no permission rule or database schema changed.
+Secondary request failures no longer impersonate empty record lists, and changing
+the user URL clears stale identity and records. A rejected clipboard write no
+longer claims success. Expense groups and recurring frequencies now use existing
+translations, paused rules say paused, and Bengali next-run dates use Bengali
+digits. Seven added web cases cover partial errors, long identities/localization,
+clipboard failure and a same-component route change; five API cases cover all
+grant combinations and member denial across all four inspector reads.
+
+Validation: regenerated OpenAPI and the TypeScript client; `pnpm verify` passes
+566 web, 10 core, 366 API and 28 audit tests (970 total), with 7 optional API skips,
+all 10 audits, both typecheckers and both linters. `pnpm build:web` passes.
+The local Node 24 / temporary Windows Python environment was used; doctor still
+notes the absent root `.env`, and QA used explicit local-only settings instead.
+Restarting the temporary API invalidated its in-memory session; signing in again
+restored QA, and the subsequent browser error/warning log was empty. Screenshots,
+the synthetic database and personal `Claude outputs/` workbooks stay outside the
+commit. Live Google Sheets verification remains open in R3.1–R3.3.
 
 ### 2026-09-10 (R2.2) — **A table fitting its container did not mean its dialogs fit.**
 

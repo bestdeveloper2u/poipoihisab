@@ -1557,6 +1557,8 @@ export interface components {
          * @description Comprehensive user data summary for superadmins.
          */
         AdminUserDetailOut: {
+            /** Adminsources */
+            adminSources?: ("database" | "environment")[];
             budget?: components["schemas"]["AdminUserBudgetOut"] | null;
             /**
              * Currentmonthexpense
