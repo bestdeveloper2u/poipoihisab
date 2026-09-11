@@ -76,6 +76,12 @@ export function AdminRoles() {
     };
   }, [lang, reloadKey]);
 
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(null), 4000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
   const envEmails = (system?.superadminEmails ?? []).map((e) => e.toLowerCase());
   const grantedByEnv = (u: AdminUserItem) =>
     !!u.email && envEmails.includes(u.email.toLowerCase());
@@ -90,7 +96,6 @@ export function AdminRoles() {
     const res = await apiAdminSetUserRole(pending.user.id, pending.grant, lang);
     if (res.ok) {
       setSuccess(res.data.message);
-      setTimeout(() => setSuccess(null), 4000);
       setReloadKey((k) => k + 1);
     } else {
       setError(res.detail);
@@ -146,7 +151,7 @@ export function AdminRoles() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-1.5 font-semibold text-ink">
-                      <Link to={`/admin/users/${u.id}`} className="hover:text-emerald hover:underline">
+                      <Link to={`/admin/users/${u.id}`} className="break-words hover:text-emerald hover:underline">
                         {u.name}
                       </Link>
                       {self && (
@@ -155,7 +160,9 @@ export function AdminRoles() {
                         </span>
                       )}
                     </p>
-                    <p className="truncate font-en text-xs text-muted">{u.email ?? "—"}</p>
+                    <p className="truncate font-en text-xs text-muted" title={u.email ?? undefined}>
+                      {u.email ?? "—"}
+                    </p>
                   </div>
                   <div className="text-right">
                     <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted">
@@ -170,6 +177,7 @@ export function AdminRoles() {
                   <button
                     type="button"
                     disabled={self || viaEnv}
+                    aria-label={`${w(lang, "adminRoleRevoke")} — ${u.name}`}
                     title={
                       viaEnv
                         ? w(lang, "adminRoleEnvNote")
@@ -206,7 +214,8 @@ export function AdminRoles() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={w(lang, "adminSearchPlaceholder")}
-            className="min-w-[200px] rounded-control border border-line/60 bg-surface/70 px-3 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-emerald focus:ring-2 focus:ring-emerald/20"
+            aria-label={w(lang, "adminSearchPlaceholder")}
+            className="w-full rounded-control border border-line/60 bg-surface/70 px-3 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-emerald focus:ring-2 focus:ring-emerald/20 sm:w-auto sm:min-w-[200px]"
           />
         }
       >
@@ -217,14 +226,15 @@ export function AdminRoles() {
             {filtered.map((u) => (
               <li key={u.id} className="flex flex-wrap items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-ink">{u.name}</p>
-                  <p className="truncate font-en text-xs text-muted">
+                  <p className="break-words font-semibold text-ink">{u.name}</p>
+                  <p className="truncate font-en text-xs text-muted" title={u.email ?? undefined}>
                     {u.email ?? "—"} · {formatDate(u.createdAt, lang)}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPending({ user: u, grant: true })}
+                  aria-label={`${w(lang, "adminRoleGrant")} — ${u.name}`}
                   className="rounded-control bg-emerald px-3 py-1.5 text-xs font-semibold text-accent-ink transition-all hover:brightness-105 active:scale-95"
                 >
                   {w(lang, "adminRoleGrant")}
@@ -268,12 +278,14 @@ export function AdminRoles() {
                     ? w(lang, "adminRoleConfirmGrant")
                     : w(lang, "adminRoleConfirmRevoke")}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-ink">
-                  {pending.user.name}
+                <div className="mt-2 text-sm font-semibold text-ink">
+                  <span className="break-words">{pending.user.name}</span>
                   {pending.user.email && (
-                    <span className="ml-1 font-en text-xs text-muted">{pending.user.email}</span>
+                    <span className="ml-1 break-all font-en text-xs text-muted">
+                      ({pending.user.email})
+                    </span>
                   )}
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2.5 border-t border-line/40 pt-4">

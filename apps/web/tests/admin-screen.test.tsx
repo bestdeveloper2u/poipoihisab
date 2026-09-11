@@ -994,7 +994,122 @@ describe("/admin/roles", () => {
     // No account carries the DB flag in this fixture — the silent-lockout
     // warning must fire.
     expect(screen.getByText(w("bn", "adminRoleNoAdmins"))).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: w("bn", "adminRoleGrant") })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: new RegExp(w("bn", "adminRoleGrant")) }),
+    ).toBeInTheDocument();
+  });
+
+  it("cancels the success timer when leaving the roles screen", async () => {
+    asSuperAdmin();
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    const view = renderApp("/admin/roles");
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      expect(await screen.findByText(w("bn", "adminRoleEnvNote"))).toBeInTheDocument();
+      const grantBtn = screen.getByRole("button", {
+        name: `${w("bn", "adminRoleGrant")} — Rahim Mia`,
+      });
+      fireEvent.click(grantBtn);
+      const confirmBtn = screen.getByRole("button", {
+        name: w("bn", "adminRoleGrant"),
+      });
+      fireEvent.click(confirmBtn);
+      expect(await screen.findByText("Superadmin granted to Rahim Mia")).toBeInTheDocument();
+      const index = timer.mock.calls.findLastIndex((call) => call[1] === 4000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      flashTimer = timer.mock.results[index].value;
+      view.unmount();
+      expect(clear).toHaveBeenCalledWith(flashTimer);
+    } finally {
+      view.unmount();
+      if (flashTimer !== undefined) clearTimeout(flashTimer);
+      timer.mockRestore();
+      clear.mockRestore();
+    }
+  });
+
+  it.each(["bn", "en"] as const)(
+    "localizes roles page, wraps long identities, and enforces self-revocation refusal in %s",
+    async (lang) => {
+      asSuperAdmin();
+      useLangStore.setState({ lang });
+      stubFetch((req, url) => {
+        if (url.pathname === "/api/v1/admin/users") {
+          return makeResponse(200, {
+            items: [
+              {
+                id: SUPER_ADMIN.id,
+                name: SUPER_ADMIN.name,
+                email: SUPER_ADMIN.email,
+                createdAt: "2026-08-01T10:00:00Z",
+                isSuperadmin: true,
+                isSuspended: false,
+                expenseCount: 0,
+                totalExpense: "0.00",
+                debtCount: 0,
+                budgetCount: 0,
+                recurringCount: 0,
+                theme: "light",
+                lang,
+              },
+              targetRow(),
+            ],
+            total: 2,
+          });
+        }
+        return adminHandler()(req, url);
+      });
+      renderApp("/admin/roles");
+
+      expect(await screen.findByText(w(lang, "adminRoleEnvNote"))).toBeInTheDocument();
+      expect(screen.getByText(w(lang, "adminRoleEnvList"))).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(w(lang, "adminSearchPlaceholder"))).toBeInTheDocument();
+
+      // Self revocation is refused
+      const revokeBtn = screen.getByRole("button", {
+        name: `${w(lang, "adminRoleRevoke")} — Super Admin`,
+      });
+      expect(revokeBtn).toBeDisabled();
+      expect(revokeBtn).toHaveAttribute("title", w(lang, "adminRoleEnvNote"));
+    },
+  );
+
+  it("shows an error banner when role change fails", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === `/api/v1/admin/users/${TARGET}/role`
+        ? makeResponse(500, { detail: "Failed to update role" })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/roles");
+
+    expect(await screen.findByText(w("bn", "adminRoleEnvNote"))).toBeInTheDocument();
+    const grantBtn = screen.getByRole("button", {
+      name: `${w("bn", "adminRoleGrant")} — Rahim Mia`,
+    });
+    fireEvent.click(grantBtn);
+    const confirmBtn = screen.getByRole("button", {
+      name: w("bn", "adminRoleGrant"),
+    });
+    fireEvent.click(confirmBtn);
+    expect(await screen.findByText("Failed to update role")).toBeInTheDocument();
+  });
+
+  it("cancels role change confirmation modal safely", async () => {
+    asSuperAdmin();
+    renderApp("/admin/roles");
+
+    expect(await screen.findByText(w("bn", "adminRoleEnvNote"))).toBeInTheDocument();
+    const grantBtn = screen.getByRole("button", {
+      name: `${w("bn", "adminRoleGrant")} — Rahim Mia`,
+    });
+    fireEvent.click(grantBtn);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const cancelBtn = screen.getByRole("button", { name: w("bn", "cancel") });
+    fireEvent.click(cancelBtn);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
 

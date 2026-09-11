@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 21 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 22 / 28 · building: **nothing**
 
 ---
 
@@ -36,7 +36,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
 | [x]  | **R2.6** Data import and export | `/admin/data` | screen |
 | [x]  | **R2.7** Audit log | `/admin/audit` | screen |
-| [!]  | **R2.8** Admins and roles | `/admin/roles` | screen |
+| [x]  | **R2.8** Admins and roles | `/admin/roles` | screen |
 | [!]  | **R2.9** Sessions and security | `/admin/security` | screen |
 | [!]  | **R2.10** System health | `/admin/system` | screen |
 | [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
@@ -60,6 +60,30 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.8) — **A success timeout survived leaving the roles screen.**
+
+The admins and roles verification closes the next admin browser clause. Synthetic
+records covered both database-flagged admins and environment-granted admins,
+silent lockout warnings when database flags are missing, self-action refusal,
+candidate search, and grant/revoke confirmation modals. The admin list, grant-source
+pills, environment email panel, candidate list, and confirmation modal were checked
+across 1440, 980 and 375px viewports in both Bengali and English.
+
+A dangling 4-second `setTimeout` in the role change callback was replaced by an
+unmount-safe `useEffect` cleanup hook, preventing unmounted state updates if an
+operator navigates away while the confirmation banner is visible. Long names and
+emails are bounded with `break-words` and `truncate` to prevent table and modal
+blowout at 375px. Action buttons now carry accessible labels distinguishing
+which user is targeted (`adminRoleGrant` / `adminRoleRevoke`), the candidate
+search input spans full width on mobile (`w-full sm:w-auto`), and self-revocation
+remains strictly disabled with an explanatory tooltip.
+
+Five automated tests in `tests/admin-screen.test.tsx` verify the separation of
+DB and env admins, success timer cancellation on unmount, full bn/en localization
+with self-revocation refusal, API error handling, and safe modal cancellation.
+Full web test suite passes with 593 tests across all 60 test files. Production
+web build and status audits pass cleanly. R2.9 is next.
 
 ### 2026-09-11 (R2.7) — **Audit controls crowded phone viewports on the header row.**
 
