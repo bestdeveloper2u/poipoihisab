@@ -65,7 +65,6 @@ export function AdminSecurity() {
     const res = await apiAdminRevokeUserSessions(pending.userId, lang);
     if (res.ok) {
       setSuccess(res.data.message);
-      setTimeout(() => setSuccess(null), 4000);
       setReloadKey((k) => k + 1);
     } else {
       setError(res.detail);
@@ -73,6 +72,13 @@ export function AdminSecurity() {
     setBusy(false);
     setPending(null);
   };
+
+  /* Auto-dismiss success banner after 4 s — unmount-safe. */
+  useEffect(() => {
+    if (!success) return;
+    const id = setTimeout(() => setSuccess(null), 4000);
+    return () => clearTimeout(id);
+  }, [success]);
 
   if (loading && !data) return <AdminLoading lang={lang} />;
 
@@ -141,7 +147,7 @@ export function AdminSecurity() {
               <tbody className="divide-y divide-line/30">
                 {data.items.map((row) => (
                   <tr key={row.userId} className="transition-colors hover:bg-surface-2/40">
-                    <td className="whitespace-nowrap px-4 py-3.5">
+                    <td className="break-words px-4 py-3.5">
                       <Link
                         to={`/admin/users/${row.userId}`}
                         className="font-semibold text-ink hover:text-emerald hover:underline"
@@ -154,7 +160,10 @@ export function AdminSecurity() {
                         </span>
                       )}
                     </td>
-                    <td className="hidden max-w-[16rem] truncate px-4 py-3.5 font-en text-xs text-muted md:table-cell">
+                    <td
+                      className="hidden max-w-[16rem] truncate px-4 py-3.5 font-en text-xs text-muted md:table-cell"
+                      title={row.email ?? undefined}
+                    >
                       {row.email ?? "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-center">
@@ -178,6 +187,7 @@ export function AdminSecurity() {
                       <button
                         type="button"
                         onClick={() => setPending(row)}
+                        aria-label={`${w(lang, "adminRevokeSessions")} — ${row.name}`}
                         className="inline-flex items-center gap-1.5 rounded-control border border-line/70 bg-surface/80 px-2.5 py-1 text-xs font-semibold text-ink transition-all hover:border-emerald/40 hover:bg-surface-2 active:scale-95"
                       >
                         <IconLock className="h-3.5 w-3.5 text-emerald" />
@@ -210,7 +220,7 @@ export function AdminSecurity() {
                 <p className="mt-1 text-sm leading-relaxed text-muted">
                   {w(lang, "adminRevokeConfirm")}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-ink">
+                <p className="mt-2 break-words text-sm font-semibold text-ink">
                   {pending.name}
                   <span className="ml-1.5 text-xs font-normal text-muted">
                     ({num(pending.sessionCount, lang)} {w(lang, "adminSessionCount")})

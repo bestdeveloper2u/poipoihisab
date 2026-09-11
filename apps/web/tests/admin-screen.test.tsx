@@ -978,10 +978,101 @@ describe("/admin/security", () => {
 
     expect(await screen.findByText("Rahim Mia")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: w("bn", "adminRevokeSessions") }),
+      screen.getByRole("button", { name: `${w("bn", "adminRevokeSessions")} — Rahim Mia` }),
     ).toBeInTheDocument();
     // An in-process KV means this list is one instance's view, not truth.
     expect(screen.getByText(/MemoryKV/)).toBeInTheDocument();
+  });
+
+  it("cancels the success timer when leaving the security screen", async () => {
+    asSuperAdmin();
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    const view = renderApp("/admin/security");
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      expect(await screen.findByText("Rahim Mia")).toBeInTheDocument();
+      const revokeBtn = screen.getByRole("button", {
+        name: `${w("bn", "adminRevokeSessions")} — Rahim Mia`,
+      });
+      fireEvent.click(revokeBtn);
+      const confirmBtn = screen.getByRole("button", {
+        name: w("bn", "adminRevokeSessions"),
+      });
+      fireEvent.click(confirmBtn);
+      expect(await screen.findByText("Revoked 3 session(s) for Rahim Mia")).toBeInTheDocument();
+      const index = timer.mock.calls.findLastIndex((call) => call[1] === 4000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      flashTimer = timer.mock.results[index].value as ReturnType<typeof setTimeout>;
+      view.unmount();
+      expect(clear).toHaveBeenCalledWith(flashTimer);
+    } finally {
+      timer.mockRestore();
+      clear.mockRestore();
+    }
+  });
+
+  it("localises the security header in both bn and en", async () => {
+    asSuperAdmin();
+    renderApp("/admin/security");
+    expect(await screen.findByText(w("bn", "navAdminSecurity"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSecuritySub"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSessionsLive"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSessionsUsers"))).toBeInTheDocument();
+
+    useLangStore.setState({ lang: "en" });
+    // After lang switch the component reloads data — wait for session row
+    expect(await screen.findByText("Rahim Mia")).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSecuritySub"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSessionsLive"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSessionsUsers"))).toBeInTheDocument();
+  });
+
+  it("shows the empty state when no sessions exist", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/sessions"
+        ? makeResponse(200, {
+            items: [],
+            totalSessions: 0,
+            usersScanned: 0,
+            kvBackend: "MemoryKV",
+            kvEphemeral: true,
+          })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/security");
+    expect(await screen.findByText(w("bn", "adminSessionsEmpty"))).toBeInTheDocument();
+  });
+
+  it("shows an error banner when sessions fail to load", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/sessions"
+        ? makeResponse(500, { detail: "Session store unreachable" })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/security");
+
+    expect(await screen.findByText("Session store unreachable")).toBeInTheDocument();
+  });
+
+  it("cancels the revoke modal without revoking", async () => {
+    asSuperAdmin();
+    renderApp("/admin/security");
+    expect(await screen.findByText("Rahim Mia")).toBeInTheDocument();
+    const revokeBtn = screen.getByRole("button", {
+      name: `${w("bn", "adminRevokeSessions")} — Rahim Mia`,
+    });
+    fireEvent.click(revokeBtn);
+    // Modal opens with revoke confirm prompt
+    expect(screen.getByText(w("bn", "adminRevokeConfirm"))).toBeInTheDocument();
+    // Click cancel
+    fireEvent.click(screen.getByRole("button", { name: w("bn", "cancel") }));
+    // Modal closes — confirm text no longer visible
+    await waitFor(() => {
+      expect(screen.queryByText(w("bn", "adminRevokeConfirm"))).not.toBeInTheDocument();
+    });
   });
 });
 

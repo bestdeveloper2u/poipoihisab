@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 22 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 23 / 28 · building: **nothing**
 
 ---
 
@@ -37,7 +37,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.6** Data import and export | `/admin/data` | screen |
 | [x]  | **R2.7** Audit log | `/admin/audit` | screen |
 | [x]  | **R2.8** Admins and roles | `/admin/roles` | screen |
-| [!]  | **R2.9** Sessions and security | `/admin/security` | screen |
+| [x]  | **R2.9** Sessions and security | `/admin/security` | screen |
 | [!]  | **R2.10** System health | `/admin/system` | screen |
 | [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
 | [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
@@ -60,6 +60,20 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.9) — **A dangling timer and a missing aria-label hid behind the revoke flow.**
+
+The sessions and security verification closes the next admin browser clause. Synthetic
+records covered the session table with stat tiles, KV ephemeral warning banner, and revoke
+confirmation modal checked across 1440, 980 and 375px viewports in both Bengali and English.
+
+A dangling 4-second `setTimeout` in the revoke callback was replaced by an unmount-safe
+`useEffect` cleanup hook, preventing state updates on unmounted components when an operator
+navigates away while the success banner is visible. Name cells switched from `whitespace-nowrap`
+to `break-words` to prevent table blowout at 375px. Truncated email cells gained `title`
+attributes for hover inspection. Revoke buttons carry accessible `aria-label` attributes
+distinguishing the target user name, and the modal user name uses `break-words` to prevent
+dialog overflow on narrow viewports.
 
 ### 2026-09-11 (R2.8) — **A success timeout survived leaving the roles screen.**
 
