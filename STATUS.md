@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 24 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 25 / 28 · building: **nothing**
 
 ---
 
@@ -39,7 +39,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.8** Admins and roles | `/admin/roles` | screen |
 | [x]  | **R2.9** Sessions and security | `/admin/security` | screen |
 | [x]  | **R2.10** System health | `/admin/system` | screen |
-| [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
+| [x]  | **R2.11** Integrations | `/admin/integrations` | screen |
 | [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
 | [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
 | [!]  | **R3.3** Multi-year Sheets ledger | `POST /export/sheets` | endpoint |
@@ -60,6 +60,21 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.11) — **Deployment-wide integrations verified across all breakpoints.**
+
+The integrations verification closes the final admin screen backlog clause. The Sheets
+sync card, voice parser card, user count card, and status badges were evaluated across 1440,
+980 and 375px viewports in both Bengali and English.
+
+Service account emails and credential paths already carry `break-all` styling on their
+monospace / English elements, ensuring long Google IAM service account strings wrap cleanly
+at 375px without blowing out card boundaries. The status pill adapts cleanly across
+languages, displaying `adminIntegrationConfigured` or `adminIntegrationNotConfigured` with
+matching color indicators. Regression tests verify secret preservation (credential JSON
+remains masked while the service account email is surfaced), bilingual header and badge
+localization, missing-credential pill presentation with actionable details, and API
+error banner handling.
 
 ### 2026-09-11 (R2.10) — **The system health screen was already well-protected.**
 

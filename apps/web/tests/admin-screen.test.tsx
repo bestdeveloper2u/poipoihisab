@@ -1510,4 +1510,58 @@ describe("/admin/integrations", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("(inline JSON)")).toBeInTheDocument();
   });
+
+  it("localises the integrations header in both bn and en", async () => {
+    asSuperAdmin();
+    renderApp("/admin/integrations");
+    expect(await screen.findByText(w("bn", "navAdminIntegrations"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminIntegrationsSub"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminIntegrationSheets"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminIntegrationVoice"))).toBeInTheDocument();
+    expect(screen.getAllByText(w("bn", "adminIntegrationConfigured")).length).toBeGreaterThan(0);
+
+    useLangStore.setState({ lang: "en" });
+    // Wait for data reload after lang switch
+    expect(await screen.findByText("svc@example.iam.gserviceaccount.com")).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminIntegrationsSub"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminIntegrationSheets"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminIntegrationVoice"))).toBeInTheDocument();
+    expect(screen.getAllByText(w("en", "adminIntegrationConfigured")).length).toBeGreaterThan(0);
+  });
+
+  it("shows the not-configured pill when Sheets is missing", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/integrations"
+        ? makeResponse(200, {
+            sheetsConfigured: false,
+            sheetsSaFile: null,
+            sheetsSaEmail: null,
+            sheetsDetail: "POIPOIHISAB_GOOGLE_CREDENTIALS is not set",
+            voiceParser: "on-device (browser SpeechRecognition)",
+            usersTotal: 15,
+          })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/integrations");
+
+    expect(
+      await screen.findByText(w("bn", "adminIntegrationNotConfigured")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("POIPOIHISAB_GOOGLE_CREDENTIALS is not set"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error banner when integrations endpoint fails", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/integrations"
+        ? makeResponse(500, { detail: "Integration check failed" })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/integrations");
+
+    expect(await screen.findByText("Integration check failed")).toBeInTheDocument();
+  });
 });
