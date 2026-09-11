@@ -878,6 +878,96 @@ describe("/admin/system", () => {
 });
 
 describe("/admin/categories", () => {
+  it("cancels the success timer when leaving the categories screen", async () => {
+    asSuperAdmin();
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    const view = renderApp("/admin/categories");
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await screen.findByText("রিক্সা");
+      const [firstMerge] = screen.getAllByRole("button", {
+        name: `${w("bn", "adminCategoryMerge")} — রিক্সা`,
+      });
+      fireEvent.click(firstMerge);
+      fireEvent.change(screen.getByLabelText(w("bn", "adminCategoryMergeTo")), {
+        target: { value: "রিকশা" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: w("bn", "adminCategoryMergeCta") }));
+      await screen.findByText(/Merged/);
+      const index = timer.mock.calls.findLastIndex((call) => call[1] === 5000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      flashTimer = timer.mock.results[index].value;
+      view.unmount();
+      expect(clear).toHaveBeenCalledWith(flashTimer);
+    } finally {
+      view.unmount();
+      if (flashTimer !== undefined) clearTimeout(flashTimer);
+      timer.mockRestore();
+      clear.mockRestore();
+    }
+  });
+
+  it.each(["bn", "en"] as const)("localizes category group names and keeps long category names bounded in %s", async (lang) => {
+    asSuperAdmin();
+    useLangStore.setState({ lang });
+    const longCat = "দীর্ঘ_ক্যাটাগরি_".repeat(6);
+    const fallback = adminHandler();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/categories"
+        ? makeResponse(200, {
+            items: [
+              { cat: longCat, grp: "food", count: 10, amount: "5000.00", userCount: 2 },
+              { cat: "মাছ", grp: "food", count: 5, amount: "2500.00", userCount: 1 },
+            ],
+            total: 2,
+          })
+        : fallback(req, url)
+    );
+    renderApp("/admin/categories");
+
+    const catEl = await screen.findByText(longCat);
+    expect(catEl).toHaveClass("break-words");
+    expect(screen.getAllByText(lang === "bn" ? "খাদ্য ও মুদি" : "Food & Groceries")).toHaveLength(2);
+
+    const mergeBtn = screen.getByRole("button", {
+      name: `${w(lang, "adminCategoryMerge")} — ${longCat}`,
+    });
+    fireEvent.click(mergeBtn);
+
+    const modal = await screen.findByRole("dialog", { name: w(lang, "adminCategoryMergeTitle") });
+    expect(within(modal).getByText(longCat)).toHaveClass("break-words");
+
+    fireEvent.click(within(modal).getByRole("button", { name: w(lang, "cancel") }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("renders empty state when no categories exist", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/categories"
+        ? makeResponse(200, { items: [], total: 0 })
+        : fallback(req, url)
+    );
+    renderApp("/admin/categories");
+
+    expect(await screen.findByText(w("bn", "adminCategoriesEmpty"))).toBeInTheDocument();
+  });
+
+  it("renders error banner when categories fetch fails", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/categories"
+        ? makeResponse(500, { detail: "Database connection failed" })
+        : fallback(req, url)
+    );
+    renderApp("/admin/categories");
+
+    expect(await screen.findByText("Database connection failed")).toBeInTheDocument();
+  });
+
   it("surfaces two spellings of one category and merges them", async () => {
     asSuperAdmin();
     renderApp("/admin/categories");
@@ -886,7 +976,7 @@ describe("/admin/categories", () => {
     expect(screen.getByText("রিকশা")).toBeInTheDocument();
 
     const [firstMerge] = screen.getAllByRole("button", {
-      name: w("bn", "adminCategoryMerge"),
+      name: `${w("bn", "adminCategoryMerge")} — রিক্সা`,
     });
     fireEvent.click(firstMerge);
 

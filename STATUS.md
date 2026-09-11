@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 18 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 19 / 28 · building: **nothing**
 
 ---
 
@@ -33,7 +33,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.2** Users roster | `/admin/users` | screen |
 | [x]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
 | [x]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
-| [!]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
+| [x]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
 | [!]  | **R2.6** Data import and export | `/admin/data` | screen |
 | [!]  | **R2.7** Audit log | `/admin/audit` | screen |
 | [!]  | **R2.8** Admins and roles | `/admin/roles` | screen |
@@ -60,6 +60,27 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.5) — **A success timeout survived leaving the categories screen.**
+
+The category taxonomy verification closes the next admin browser clause.
+Synthetic categories covered long unbroken names (over 80 characters), multiple
+groups per category, empty taxonomy, and duplicate spellings. The taxonomy
+table, share bars, drift warning banner and merge modal were checked across 1440,
+980 and 375px viewports in both Bengali and English.
+
+Long category names now wrap with break-words to prevent table and modal blowout
+on mobile viewports (375px). Group codes use existing localized catalogs rather
+than raw English keys. The merge action button now provides an accessible name
+specifying which category is targeted. A success timer cleanup effect was added
+so navigating away before the 5-second notification expires cancels the pending
+timer, eliminating unmounted component state updates.
+
+Four added web tests cover success timer cancellation on route unmount,
+localized category groups, long category break-words containment in both table
+and modal, empty states and API error banners. Full web test suite passes with
+579 tests across all 60 test files. Production web build and all audit gates
+pass cleanly. R2.6 is next.
 
 ### 2026-09-11 (R2.4) — **A zero month still had a bar.**
 

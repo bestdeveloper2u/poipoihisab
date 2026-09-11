@@ -13,6 +13,7 @@ import type { AdminCategoryItem } from "@poipoihisab/api-client";
 import { apiAdminCategories, apiAdminMergeCategory } from "@poipoihisab/api-client";
 import { Modal } from "../../components/Modal";
 import { IconReceipt } from "../../components/icons";
+import { groupName } from "../../lib/catalog";
 import { fmtTaka } from "../../lib/money";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
@@ -58,6 +59,12 @@ export function AdminCategories() {
     };
   }, [lang, reloadKey]);
 
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(null), 5000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
   const runMerge = async () => {
     if (!mergeFrom || !mergeTo.trim()) return;
     setBusy(true);
@@ -70,7 +77,6 @@ export function AdminCategories() {
     );
     if (res.ok) {
       setSuccess(res.data.message);
-      setTimeout(() => setSuccess(null), 5000);
       setReloadKey((k) => k + 1);
       setMergeFrom(null);
       setMergeTo("");
@@ -131,12 +137,14 @@ export function AdminCategories() {
                     className="transition-colors hover:bg-surface-2/40"
                   >
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-ink">{item.cat}</span>
+                      <span className="font-semibold text-ink break-words">{item.cat}</span>
                       <div className="mt-1 max-w-[10rem]">
                         <ShareBar pct={(item.count / busiest) * 100} />
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{item.grp}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">
+                      {item.grp === "—" ? "—" : groupName(item.grp, lang)}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-ink">
                       {num(item.count, lang)}
                     </td>
@@ -149,6 +157,7 @@ export function AdminCategories() {
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       <button
                         type="button"
+                        aria-label={`${w(lang, "adminCategoryMerge")} — ${item.cat}`}
                         onClick={() => {
                           setMergeFrom(item);
                           setMergeTo("");
@@ -186,13 +195,13 @@ export function AdminCategories() {
               <span className="text-xs font-semibold text-muted">
                 {w(lang, "adminCategoryMergeFrom")}
               </span>
-              <p className="font-bold text-ink">
+              <div className="font-bold text-ink break-words">
                 {mergeFrom.cat}
-                <span className="ml-2 text-xs font-normal text-muted">
-                  {mergeFrom.grp} · {num(mergeFrom.count, lang)} {w(lang, "entries")} ·{" "}
+                <span className="ml-2 text-xs font-normal text-muted inline-block">
+                  {mergeFrom.grp === "—" ? "—" : groupName(mergeFrom.grp, lang)} · {num(mergeFrom.count, lang)} {w(lang, "entries")} ·{" "}
                   {num(mergeFrom.userCount, lang)} {w(lang, "adminCategoryUsers")}
                 </span>
-              </p>
+              </div>
             </div>
 
             <div>
