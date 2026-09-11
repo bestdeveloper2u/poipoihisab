@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 23 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 24 / 28 · building: **nothing**
 
 ---
 
@@ -38,7 +38,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.7** Audit log | `/admin/audit` | screen |
 | [x]  | **R2.8** Admins and roles | `/admin/roles` | screen |
 | [x]  | **R2.9** Sessions and security | `/admin/security` | screen |
-| [!]  | **R2.10** System health | `/admin/system` | screen |
+| [x]  | **R2.10** System health | `/admin/system` | screen |
 | [!]  | **R2.11** Integrations | `/admin/integrations` | screen |
 | [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
 | [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
@@ -60,6 +60,19 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.10) — **The system health screen was already well-protected.**
+
+The system health verification closes the next admin browser clause. The warning list,
+healthy-state banner, database card, session store card, and configuration card were
+checked across 1440, 980 and 375px viewports in both Bengali and English.
+
+The `Row` component already uses `break-all` on value spans, so long CORS origin lists
+and superadmin email addresses wrap gracefully at 375px without intervention. Technical
+labels like Dialect, Backend, Mode, and Version are kept in English since they mirror
+environment variable names and technical identifiers that operators should recognise
+verbatim. Regression tests verify the KV fallback warning with localised section headers,
+the healthy banner when warnings are empty, and the API error banner.
 
 ### 2026-09-11 (R2.9) — **A dangling timer and a missing aria-label hid behind the revoke flow.**
 

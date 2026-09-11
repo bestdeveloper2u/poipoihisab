@@ -1215,6 +1215,68 @@ describe("/admin/system", () => {
     expect(screen.getByText("postgresql")).toBeInTheDocument();
     expect(screen.getByText("0007")).toBeInTheDocument();
   });
+
+  it("localises the system header in both bn and en", async () => {
+    asSuperAdmin();
+    renderApp("/admin/system");
+    expect(await screen.findByText(w("bn", "navAdminSystem"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSystemSub"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSystemDatabase"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSystemSessionStore"))).toBeInTheDocument();
+    expect(screen.getByText(w("bn", "adminSystemConfig"))).toBeInTheDocument();
+
+    useLangStore.setState({ lang: "en" });
+    // Wait for the data reload after lang switch
+    expect(await screen.findByText("postgresql")).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSystemSub"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSystemDatabase"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSystemSessionStore"))).toBeInTheDocument();
+    expect(screen.getByText(w("en", "adminSystemConfig"))).toBeInTheDocument();
+  });
+
+  it("shows the healthy banner when warnings are empty", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/system"
+        ? makeResponse(200, {
+            env: "prod",
+            version: "0.28.0",
+            dbDialect: "postgresql",
+            dbOk: true,
+            dbError: null,
+            kvBackend: "RedisKV",
+            kvEphemeral: false,
+            kvConfigured: true,
+            migrationCurrent: "0007",
+            auditTablePresent: true,
+            corsOrigins: ["https://poipoihisab.app"],
+            superadminEmails: ["admin@poipoihisab.com"],
+            refreshCookieSecure: true,
+            accessTtl: 900,
+            refreshTtl: 2592000,
+            authRateLimit: 5,
+            serverTime: "2026-09-09T09:00:00Z",
+            warnings: [],
+          })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/system");
+
+    expect(await screen.findByText(new RegExp(w("bn", "adminSystemHealthy")))).toBeInTheDocument();
+    expect(screen.queryByText(w("bn", "adminSystemWarnings"))).not.toBeInTheDocument();
+  });
+
+  it("shows an error banner when system endpoint fails", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/system"
+        ? makeResponse(500, { detail: "System check failed" })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/system");
+
+    expect(await screen.findByText("System check failed")).toBeInTheDocument();
+  });
 });
 
 describe("/admin/categories", () => {
