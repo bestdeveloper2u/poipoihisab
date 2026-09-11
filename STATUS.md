@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 20 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 21 / 28 · building: **nothing**
 
 ---
 
@@ -35,7 +35,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
 | [x]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
 | [x]  | **R2.6** Data import and export | `/admin/data` | screen |
-| [!]  | **R2.7** Audit log | `/admin/audit` | screen |
+| [x]  | **R2.7** Audit log | `/admin/audit` | screen |
 | [!]  | **R2.8** Admins and roles | `/admin/roles` | screen |
 | [!]  | **R2.9** Sessions and security | `/admin/security` | screen |
 | [!]  | **R2.10** System health | `/admin/system` | screen |
@@ -60,6 +60,28 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.7) — **Audit controls crowded phone viewports on the header row.**
+
+The audit log verification closes the next admin browser clause. Synthetic audit
+records covered diverse action verbs (`user.bulk_delete`, `user.suspend`), empty
+logs, long target labels, IP metadata, and deep links to user inspector views.
+The audit table, verb filter select, search input, and pager controls were checked
+across 1440, 980 and 375px viewports in both Bengali and English.
+
+On 375px mobile screens, placing the verb dropdown and search input in an unconstrained
+flex row caused horizontal compression; they now stack neatly at 100% width on
+small devices (`w-full sm:w-auto`) while preserving desktop row alignment. The
+action filter, search input, user inspector links, and pagination arrow buttons
+now carry explicit accessible `aria-label` attributes for screen readers. Desktop
+hover titles were added to truncated cells (actor email, target label, detail)
+so operators can inspect full values without opening inspector tools.
+
+Four automated tests in `tests/admin-screen.test.tsx` verify the full audit trail,
+action badge styling, header and pager localization across Bengali and English,
+empty state presentation, and API failure handling. Full web test suite passes with
+588 tests across all 60 test files. Production web build and status audits pass cleanly.
+R2.8 is next.
 
 ### 2026-09-11 (R2.6) — **A hardcoded English header lived in an otherwise localized table.**
 

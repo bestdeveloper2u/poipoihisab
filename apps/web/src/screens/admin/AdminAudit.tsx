@@ -87,7 +87,7 @@ export function AdminAudit() {
         title={w(lang, "navAdminAudit")}
         subtitle={w(lang, "adminAuditSub")}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <select
               value={action}
               onChange={(e) => {
@@ -95,7 +95,7 @@ export function AdminAudit() {
                 setAction(e.target.value);
               }}
               aria-label={w(lang, "adminAuditAction")}
-              className="rounded-control border border-line/60 bg-surface/70 px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/20"
+              className="w-full rounded-control border border-line/60 bg-surface/70 px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/20 sm:w-auto"
             >
               <option value="">{w(lang, "adminAuditAllActions")}</option>
               {(data?.actions ?? []).map((verb) => (
@@ -104,11 +104,12 @@ export function AdminAudit() {
                 </option>
               ))}
             </select>
-            <div className="relative min-w-[220px]">
+            <div className="relative w-full sm:w-auto sm:min-w-[220px]">
               <IconSearch className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
               <input
                 type="search"
                 placeholder={w(lang, "adminAuditSearchPh")}
+                aria-label={w(lang, "adminAuditSearchPh")}
                 defaultValue={query}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -164,12 +165,18 @@ export function AdminAudit() {
                           {entry.action}
                         </span>
                       </td>
-                      <td className="hidden max-w-[14rem] truncate px-4 py-3 font-en text-xs text-muted md:table-cell">
+                      <td
+                        className="hidden max-w-[14rem] truncate px-4 py-3 font-en text-xs text-muted md:table-cell"
+                        title={entry.actorEmail ?? undefined}
+                      >
                         {entry.actorEmail ?? "—"}
                         {entry.ip && <span className="ml-1.5 opacity-70">({entry.ip})</span>}
                       </td>
                       <td className="max-w-[16rem] px-4 py-3">
-                        <span className="block truncate text-xs font-medium text-ink">
+                        <span
+                          className="block truncate text-xs font-medium text-ink"
+                          title={entry.targetLabel ?? entry.targetType ?? undefined}
+                        >
                           {entry.targetLabel ?? entry.targetType ?? "—"}
                         </span>
                         {entry.targetType === "user" && entry.targetId && (
@@ -177,6 +184,7 @@ export function AdminAudit() {
                              worth offering for a suspend/revoke row. */
                           <Link
                             to={`/admin/users/${entry.targetId}`}
+                            aria-label={`${w(lang, "adminInspect")}: ${entry.targetLabel ?? entry.targetId}`}
                             className="font-mono text-[10px] text-emerald hover:underline"
                           >
                             {entry.targetId.slice(0, 8)}…
@@ -186,7 +194,10 @@ export function AdminAudit() {
                       <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-ink">
                         {num(entry.affected, lang)}
                       </td>
-                      <td className="hidden max-w-[22rem] px-4 py-3 text-xs text-muted lg:table-cell">
+                      <td
+                        className="hidden max-w-[22rem] px-4 py-3 text-xs text-muted lg:table-cell"
+                        title={entry.detail ?? undefined}
+                      >
                         <span className="line-clamp-2">{entry.detail ?? "—"}</span>
                       </td>
                     </tr>
@@ -205,6 +216,7 @@ export function AdminAudit() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
+                  aria-label={lang === "bn" ? "পূর্ববর্তী পৃষ্ঠা" : "Previous page"}
                   className="rounded-control border border-line/60 px-2.5 py-1 font-semibold text-ink disabled:opacity-40"
                 >
                   ←
@@ -213,6 +225,7 @@ export function AdminAudit() {
                   type="button"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={!hasMore}
+                  aria-label={lang === "bn" ? "পরবর্তী পৃষ্ঠা" : "Next page"}
                   className="rounded-control border border-line/60 px-2.5 py-1 font-semibold text-ink disabled:opacity-40"
                 >
                   →

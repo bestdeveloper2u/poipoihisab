@@ -915,6 +915,60 @@ describe("/admin/audit", () => {
     const filter = screen.getByLabelText(w("bn", "adminAuditAction"));
     expect(within(filter).getByRole("option", { name: "user.suspend" })).toBeInTheDocument();
   });
+
+  it.each(["bn", "en"] as const)(
+    "localizes audit table headers, search and pager in %s",
+    async (lang) => {
+      asSuperAdmin();
+      useLangStore.setState({ lang });
+      renderApp("/admin/audit");
+
+      expect(await screen.findByText(w(lang, "adminAuditWhen"))).toBeInTheDocument();
+      expect(screen.getByText(w(lang, "adminAuditAction"))).toBeInTheDocument();
+      expect(screen.getByText(w(lang, "adminAuditTarget"))).toBeInTheDocument();
+      expect(screen.getByText(w(lang, "adminAuditAffected"))).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(w(lang, "adminAuditSearchPh"))).toBeInTheDocument();
+
+      const prevBtn = screen.getByRole("button", {
+        name: lang === "bn" ? "পূর্ববর্তী পৃষ্ঠা" : "Previous page",
+      });
+      const nextBtn = screen.getByRole("button", {
+        name: lang === "bn" ? "পরবর্তী পৃষ্ঠা" : "Next page",
+      });
+      expect(prevBtn).toBeInTheDocument();
+      expect(prevBtn).toBeDisabled();
+      expect(nextBtn).toBeInTheDocument();
+
+      const inspectLink = screen.getByRole("link", {
+        name: new RegExp(`^${w(lang, "adminInspect")}:`),
+      });
+      expect(inspectLink).toBeInTheDocument();
+    },
+  );
+
+  it("shows an empty state when audit log has no entries", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/audit"
+        ? makeResponse(200, { items: [], total: 0, actions: [] })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/audit");
+
+    expect(await screen.findByText(w("bn", "adminAuditEmpty"))).toBeInTheDocument();
+  });
+
+  it("shows an error banner when audit log fails to load", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/audit"
+        ? makeResponse(500, { detail: "Audit trail unavailable" })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/audit");
+
+    expect(await screen.findByText("Audit trail unavailable")).toBeInTheDocument();
+  });
 });
 
 describe("/admin/security", () => {
