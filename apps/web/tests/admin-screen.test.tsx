@@ -901,12 +901,103 @@ describe("/admin/categories", () => {
 });
 
 describe("/admin/analytics", () => {
+  it.each(["bn", "en"] as const)("keeps zero and fractional bars honest and labels scope in %s", async (lang) => {
+    asSuperAdmin();
+    useLangStore.setState({ lang });
+    const fallback = adminHandler();
+    stubFetch(async (req, url) => {
+      const response = await fallback(req, url);
+      if (url.pathname !== "/api/v1/admin/analytics") return response;
+      const body = await response.json();
+      body.trend = [
+        { month: "2026-07", amount: "0.00", expenses: 0, newUsers: 0 },
+        { month: "2026-08", amount: "0.25", expenses: 1, newUsers: 0 },
+        { month: "2026-09", amount: "0.50", expenses: 1, newUsers: 0 },
+      ];
+      body.byCategory = [{ label: "Zero category", amount: "0.00", count: 1 }];
+      return makeResponse(200, body);
+    });
+    renderApp("/admin/analytics");
+    await screen.findByRole("table", { name: w(lang, "adminTrend") });
+    for (const [month, height] of [["07", "0%"], ["08", "50%"], ["09", "100%"]]) {
+      const prefix = lang === "bn" ? `২০২৬-${month === "07" ? "০৭" : month === "08" ? "০৮" : "০৯"}:` : `2026-${month}:`;
+      expect(screen.getByTitle(new RegExp(prefix))).toHaveStyle({ height });
+    }
+    const row = screen.getByText("Zero category").closest("li")!;
+    expect(row.querySelector("[style]")).toHaveStyle({ width: "0%" });
+    expect(screen.getByText(lang === "bn" ? "খাদ্য ও মুদি" : "Food & Groceries")).toBeInTheDocument();
+    expect(screen.getByText(lang === "bn" ? "নগদ টাকা" : "Cash")).toBeInTheDocument();
+    expect(screen.getAllByText(w(lang, "adminRankingScope"))).toHaveLength(3);
+    expect(screen.getByText(w(lang, "adminAnalyticsDebtScope"))).toBeInTheDocument();
+    expect(screen.getByText(w(lang, "adminTopSpendersScope"))).toBeInTheDocument();
+    expect(screen.getByText(w(lang, "adminTrendScope").replace("{start}", lang === "bn" ? "২০২৬-০৭" : "2026-07").replace("{end}", lang === "bn" ? "২০২৬-০৯" : "2026-09"))).toBeInTheDocument();
+  });
+
+  it.each(["bn", "en"] as const)("wraps long ranked identities and large totals in %s", async (lang) => {
+    asSuperAdmin();
+    useLangStore.setState({ lang });
+    const fallback = adminHandler();
+    const longName = "A".repeat(80);
+    const longEmail = "e".repeat(100) + "@example.invalid";
+    stubFetch(async (req, url) => {
+      const response = await fallback(req, url);
+      if (url.pathname !== "/api/v1/admin/analytics") return response;
+      const body = await response.json();
+      body.topUsers[0] = { ...body.topUsers[0], name: longName, email: longEmail, totalExpense: "9999999999.99" };
+      body.byCategory[0].label = "C".repeat(80);
+      body.debtLend = "9999999999.99";
+      return makeResponse(200, body);
+    });
+    renderApp("/admin/analytics");
+    const link = await screen.findByRole("link", { name: longName });
+    expect(link).toHaveClass("break-words");
+    expect(link).toHaveAttribute("href", `/admin/users/${TARGET}`);
+    expect(link.closest("li")).toHaveClass("grid-cols-[1.25rem_minmax(0,1fr)]");
+    expect(screen.getByText(longEmail)).toHaveClass("break-all");
+    expect(screen.getByText("C".repeat(80))).toHaveClass("break-words");
+    expect(screen.getByText(w(lang, "adminRecordedLend")).parentElement).toHaveClass("min-w-0", "break-words");
+  });
+
+  it("handles loading followed by an empty analytics response", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    let finish!: (response: Response) => void;
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/analytics"
+      ? new Promise<Response>((resolve) => { finish = resolve; }) : fallback(req, url));
+    renderApp("/admin/analytics");
+    expect(await screen.findByText(w("bn", "loading"))).toBeInTheDocument();
+    finish(makeResponse(200, { byGroup: [], byCategory: [], byPayment: [], trend: [], topUsers: [], debtLend: "0.00", debtBorrow: "0.00" }));
+    expect(await screen.findByText(w("bn", "adminNoData"))).toBeInTheDocument();
+    expect(screen.getAllByText(w("bn", "adminCategoriesEmpty"))).toHaveLength(4);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows a failed analytics request without invented totals", async () => {
+    asSuperAdmin();
+    const fallback = adminHandler();
+    stubFetch((req, url) => url.pathname === "/api/v1/admin/analytics"
+      ? makeResponse(503, { detail: "Analytics unavailable — try again" }) : fallback(req, url));
+    renderApp("/admin/analytics");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Analytics unavailable — try again");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("denies a member before requesting platform analytics", async () => {
+    useAuthStore.setState({ status: "authed", user: REGULAR_USER, accessToken: "member-token", refreshToken: null });
+    const fallback = adminHandler();
+    const calls: string[] = [];
+    stubFetch((req, url) => { calls.push(url.pathname); return fallback(req, url); });
+    renderApp("/admin/analytics");
+    expect(await screen.findByText(w("bn", "adminAccessDenied"))).toBeInTheDocument();
+    expect(calls).not.toContain("/api/v1/admin/analytics");
+  });
+
   it("shows aggregate distributions and no individual expense rows", async () => {
     asSuperAdmin();
     renderApp("/admin/analytics");
 
     expect(await screen.findByText(w("bn", "adminByGroup"))).toBeInTheDocument();
-    expect(screen.getByText("food")).toBeInTheDocument();
+    expect(screen.getByText("খাদ্য ও মুদি")).toBeInTheDocument();
     expect(screen.getByText("বাজার")).toBeInTheDocument();
     expect(screen.getByText("২০২৬-০৯")).toBeInTheDocument();
     // Without a definite column height, percentage-height bars collapse to zero.

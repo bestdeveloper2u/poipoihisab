@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 17 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 18 / 28 · building: **nothing**
 
 ---
 
@@ -32,7 +32,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.1** Admin overview | `/admin` | screen |
 | [x]  | **R2.2** Users roster | `/admin/users` | screen |
 | [x]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
-| [!]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
+| [x]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
 | [!]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
 | [!]  | **R2.6** Data import and export | `/admin/data` | screen |
 | [!]  | **R2.7** Audit log | `/admin/audit` | screen |
@@ -60,6 +60,43 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.4) — **A zero month still had a bar.**
+
+The analytics verification begun on September 10 closes the next admin browser
+clause. Synthetic local records covered twelve months across a year boundary,
+one empty month, Bengali categories, an 80-character unbroken category/name and
+a long email. The chart/table, three ranked distribution panels, debt tiles and
+top-spender list were inspected at 375, 980 and 1440px. Bengali and English were
+checked; the temporary account's language was restored to Bengali. No real
+database, owner credentials, Google Sheet or moderation action was used.
+
+The long name stretched the phone document to 932px. Bounded grid tracks,
+wrapping labels/identities and stacked phone amounts now keep content at 360px
+inside the 375px viewport; the table alone scrolls horizontally. Group/payment
+codes use existing localized catalogs. The trend had a two-percent minimum bar
+for zero and a one-taka minimum scale for fractional values. Both distortions
+are removed, and analytics ranking bars can likewise have zero length without
+changing the shared component's existing default elsewhere.
+
+Chart QA also found that scope was missing from the labels. The trend includes
+the current incomplete month, but rankings are all-time and bar lengths are
+relative to each panel's largest amount. Debt totals include settled rows, so
+they are labeled recorded amounts rather than receivable/payable balances.
+The named exact-value table remains available to assistive technology; the
+chart geometry is decorative. No API calculation, permission or schema changed.
+
+Seven added UI cases exercise zero/fractional bars in both languages, long
+identities and large totals, loading-to-empty, failed reads and member denial.
+Two API cases pin empty zero-filled months, year/window boundaries, all-time
+rankings and settled debt amounts, alongside existing aggregate-only and denied
+tests. Local `pnpm verify` passes 574 web, 10 core, 368 API and 28 audit tests
+(980 total), with 7 optional API skips, all 10 audits, both typecheckers and
+both linters. OpenAPI/client regeneration is unchanged; production build passes.
+The browser console was clear on the resumed desktop check. Doctor still names
+the absent root `.env`; explicit temporary local settings were used for QA.
+Personal `Claude outputs/` workbooks and the synthetic QA database remain outside
+the commit. R2.5 is next; live Sheets clauses remain open.
 
 ### 2026-09-10 (R2.3) — **An empty tab was sometimes a failed request.**
 

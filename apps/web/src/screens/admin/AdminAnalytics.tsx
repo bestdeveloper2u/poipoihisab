@@ -14,6 +14,7 @@ import { Link } from "react-router";
 import type { AdminAnalytics as AdminAnalyticsData, AdminSlice } from "@poipoihisab/api-client";
 import { apiAdminAnalytics } from "@poipoihisab/api-client";
 import { IconBarChart, IconReceipt } from "../../components/icons";
+import { groupName, payName } from "../../lib/catalog";
 import { fmtTaka } from "../../lib/money";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { w } from "../../lib/web-i18n";
@@ -29,8 +30,8 @@ import {
 } from "./shared";
 
 /** Ranked breakdown with a share bar per row. */
-function SliceList({ slices, lang }: { slices: AdminSlice[]; lang: "bn" | "en" }) {
-  const top = Number(slices[0]?.amount ?? 0) || 1;
+function SliceList({ slices, lang, label = (value) => value }: { slices: AdminSlice[]; lang: "bn" | "en"; label?: (value: string, lang: "bn" | "en") => string }) {
+  const top = Math.max(0, ...slices.map((slice) => Number(slice.amount))) || 1;
   if (slices.length === 0) {
     return <AdminEmpty icon={IconReceipt} messageKey="adminCategoriesEmpty" lang={lang} />;
   }
@@ -38,17 +39,17 @@ function SliceList({ slices, lang }: { slices: AdminSlice[]; lang: "bn" | "en" }
     <ul className="space-y-2.5">
       {slices.map((slice) => (
         <li key={`${slice.label}-${slice.count}`}>
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate text-sm font-semibold text-ink">{slice.label}</span>
-            <span className="shrink-0 text-xs font-bold tabular-nums text-ink">
+          <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <span className="min-w-0 break-words text-sm font-semibold text-ink">{label(slice.label, lang)}</span>
+            <span className="min-w-0 break-words text-xs font-bold tabular-nums text-ink sm:shrink-0">
               {fmtTaka(slice.amount, lang)}
               <span className="ml-1.5 font-normal text-muted">
                 ({num(slice.count, lang)})
               </span>
             </span>
           </div>
-          <div className="mt-1">
-            <ShareBar pct={(Number(slice.amount) / top) * 100} />
+          <div className="mt-1" aria-hidden="true">
+            <ShareBar pct={(Number(slice.amount) / top) * 100} minPct={0} />
           </div>
         </li>
       ))}
@@ -85,7 +86,10 @@ export function AdminAnalytics() {
 
   if (loading && !data) return <AdminLoading lang={lang} />;
 
-  const peak = data ? Math.max(1, ...data.trend.map((p) => Number(p.amount))) : 1;
+  const peak = data ? Math.max(0, ...data.trend.map((p) => Number(p.amount))) || 1 : 1;
+  const trendHint = data && data.trend.length > 0
+    ? w(lang, "adminTrendScope").replace("{start}", num(data.trend[0].month, lang)).replace("{end}", num(data.trend[data.trend.length - 1].month, lang))
+    : w(lang, "adminNoData");
 
   return (
     <div className="w-full space-y-5 pb-12 pt-2">
@@ -99,14 +103,14 @@ export function AdminAnalytics() {
 
       {data && (
         <>
-          <AdminCard title={w(lang, "adminTrend")}>
+          <AdminCard title={w(lang, "adminTrend")} hint={trendHint}>
             {/* Column chart: one bar per month, height relative to the peak.
-                Values sit in the accessible name, so the shape is decorative
-                and the numbers are still readable by a screen reader. */}
-            <div className="flex h-44 items-end gap-1.5 sm:gap-2.5">
+                The table below supplies exact values and accessible labels.
+                Zero months must not acquire the old minimum-height bar. */}
+            <div className="flex h-44 items-end gap-1.5 border-b border-line/50 sm:gap-2.5" aria-hidden="true">
               {data.trend.map((point) => {
                 const amount = Number(point.amount);
-                const pct = Math.max(2, (amount / peak) * 100);
+                const pct = Math.max(0, (amount / peak) * 100);
                 return (
                   <div key={point.month} className="flex h-full min-w-0 flex-1 flex-col items-center gap-1.5">
                     <div className="flex w-full flex-1 items-end">
@@ -126,6 +130,7 @@ export function AdminAnalytics() {
             </div>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-xs">
+                <caption className="sr-only">{w(lang, "adminTrend")}</caption>
                 <thead className="border-b border-line/40 text-[10px] font-bold uppercase tracking-wider text-muted">
                   <tr>
                     <th className="py-2 pr-3">{w(lang, "adminMonth")}</th>
@@ -154,29 +159,29 @@ export function AdminAnalytics() {
             </div>
           </AdminCard>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AdminCard title={w(lang, "adminByGroup")}>
-              <SliceList slices={data.byGroup} lang={lang} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <AdminCard title={w(lang, "adminByGroup")} hint={w(lang, "adminRankingScope")} className="min-w-0">
+              <SliceList slices={data.byGroup} lang={lang} label={groupName} />
             </AdminCard>
-            <AdminCard title={w(lang, "adminByCategory")}>
+            <AdminCard title={w(lang, "adminByCategory")} hint={w(lang, "adminRankingScope")} className="min-w-0">
               <SliceList slices={data.byCategory} lang={lang} />
             </AdminCard>
-            <AdminCard title={w(lang, "adminByPayment")}>
-              <SliceList slices={data.byPayment} lang={lang} />
+            <AdminCard title={w(lang, "adminByPayment")} hint={w(lang, "adminRankingScope")} className="min-w-0">
+              <SliceList slices={data.byPayment} lang={lang} label={payName} />
             </AdminCard>
-            <AdminCard title={w(lang, "adminTabDebts")}>
+            <AdminCard title={w(lang, "adminTabDebts")} hint={w(lang, "adminAnalyticsDebtScope")} className="min-w-0">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-control bg-emerald/10 p-3">
+                <div className="min-w-0 break-words rounded-control bg-emerald/10 p-3">
                   <span className="text-[11px] font-semibold text-muted">
-                    {w(lang, "adminDebtLend")}
+                    {w(lang, "adminRecordedLend")}
                   </span>
                   <p className="mt-1 text-lg font-extrabold tabular-nums text-emerald">
                     {fmtTaka(data.debtLend, lang)}
                   </p>
                 </div>
-                <div className="rounded-control bg-danger/10 p-3">
+                <div className="min-w-0 break-words rounded-control bg-danger/10 p-3">
                   <span className="text-[11px] font-semibold text-muted">
-                    {w(lang, "adminDebtBorrow")}
+                    {w(lang, "adminRecordedBorrow")}
                   </span>
                   <p className="mt-1 text-lg font-extrabold tabular-nums text-danger">
                     {fmtTaka(data.debtBorrow, lang)}
@@ -186,31 +191,31 @@ export function AdminAnalytics() {
             </AdminCard>
           </div>
 
-          <AdminCard title={w(lang, "adminTopSpenders")}>
+          <AdminCard title={w(lang, "adminTopSpenders")} hint={w(lang, "adminTopSpendersScope")}>
             {data.topUsers.length === 0 ? (
               <AdminEmpty icon={IconReceipt} messageKey="adminCategoriesEmpty" lang={lang} />
             ) : (
               <ol className="divide-y divide-line/30">
                 {data.topUsers.map((row, i) => (
-                  <li key={row.userId} className="flex items-center gap-3 py-2.5">
+                  <li key={row.userId} className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 sm:grid-cols-[1.25rem_minmax(0,1fr)_auto]">
                     <span className="w-5 shrink-0 text-right text-xs font-bold tabular-nums text-muted">
                       {num(i + 1, lang)}
                     </span>
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/admin/users/${row.userId}`}
-                        className="font-semibold text-ink hover:text-emerald hover:underline"
+                        className="break-words font-semibold text-ink hover:text-emerald hover:underline"
                       >
                         {row.name}
                       </Link>
-                      <p className="truncate font-en text-[11px] text-muted">{row.email ?? "—"}</p>
+                      <p className="break-all font-en text-[11px] text-muted">{row.email ?? "—"}</p>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="col-start-2 min-w-0 break-words sm:col-start-3 sm:text-right">
                       <p className="text-sm font-bold tabular-nums text-ink">
                         {fmtTaka(row.totalExpense, lang)}
                       </p>
                       <p className="text-[11px] text-muted">
-                        {num(row.expenseCount, lang)} {w(lang, "entries")}
+                        {w(lang, "entries")}: {num(row.expenseCount, lang)}
                       </p>
                     </div>
                   </li>

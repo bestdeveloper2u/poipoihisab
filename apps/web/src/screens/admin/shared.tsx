@@ -177,12 +177,12 @@ export function AdminEmpty({
  * Horizontal share bar for an analytics slice. Deliberately CSS-only —
  * the admin bundle should not pull a charting library for four lists.
  */
-export function ShareBar({ pct }: { pct: number }) {
+export function ShareBar({ pct, minPct = 1 }: { pct: number; minPct?: number }) {
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
       <div
         className="h-full rounded-full bg-emerald"
-        style={{ width: `${Math.max(1, Math.min(100, pct))}%` }}
+        style={{ width: `${Math.max(minPct, Math.min(100, pct))}%` }}
       />
     </div>
   );

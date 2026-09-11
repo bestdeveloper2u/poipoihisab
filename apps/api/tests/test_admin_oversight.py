@@ -5,6 +5,7 @@ platform analytics, taxonomy merge, and the system/integrations probes.
 """
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
@@ -437,6 +438,52 @@ async def test_analytics_aggregates_across_users(client: AsyncClient) -> None:
 
     # Aggregate-only: no individual expense rows leak out of this endpoint.
     assert "items" not in body
+
+
+@pytest.mark.asyncio
+async def test_analytics_window_zero_months_and_all_time_totals(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.routers import admin as admin_router
+
+    class SeptemberClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 9, 10, tzinfo=UTC)
+
+    monkeypatch.setattr(admin_router, "datetime", SeptemberClock)
+    headers, _ = await _admin(client)
+    for iso, amount in [("2025-09-30", "900.00"), ("2025-10-01", "0.25"), ("2026-09-01", "0.50"), ("2026-10-01", "700.00")]:
+        await _expense(client, headers, iso=iso, amt=amount)
+    debt = await client.post("/api/v1/debts", headers=headers, json={"party": "QA borrower", "dir": "lend", "amt": "80.00"})
+    assert debt.status_code == 201
+    paid = await client.post(f"/api/v1/debts/{debt.json()['id']}/pay", headers=headers, json={"amt": "80.00"})
+    assert paid.status_code == 200
+    body = (await client.get("/api/v1/admin/analytics", headers=headers)).json()
+    assert body["trend"][0]["month"] == "2025-10"
+    assert body["trend"][-1]["month"] == "2026-09"
+    assert len(body["trend"]) == 12
+    assert body["trend"][0]["amount"] == "0.25"
+    assert body["trend"][1]["amount"] == "0.00"
+    assert body["trend"][1]["expenses"] == 0
+    assert body["trend"][-1]["amount"] == "0.50"
+    assert sum(point["expenses"] for point in body["trend"]) == 2
+    # These panels are all-time, not filtered by the trend's rolling window.
+    assert body["byGroup"][0]["amount"] == "1600.75"
+    assert body["topUsers"][0]["totalExpense"] == "1600.75"
+    # A settled row retains its amount, so this is not outstanding debt.
+    assert body["debtLend"] == "80.00"
+    assert "items" not in body
+
+
+@pytest.mark.asyncio
+async def test_analytics_empty_platform_has_zero_filled_trend(client: AsyncClient) -> None:
+    headers, _ = await _admin(client)
+    result = await client.get("/api/v1/admin/analytics", headers=headers)
+    assert result.status_code == 200
+    body = result.json()
+    assert len(body["trend"]) == 12
+    assert all(point["amount"] == "0.00" and point["expenses"] == 0 for point in body["trend"])
+    assert all(body[key] == [] for key in ("byGroup", "byCategory", "byPayment", "topUsers"))
+    assert body["debtLend"] == body["debtBorrow"] == "0.00"
 
 
 @pytest.mark.asyncio

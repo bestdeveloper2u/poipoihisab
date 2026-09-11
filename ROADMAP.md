@@ -286,6 +286,15 @@ spenders.
 month key is built in Python rather than with `strftime`/`to_char`, which spell
 differently on SQLite and Postgres.
 **Data** — `expenses`, `debts`, `profiles`.
+The trend is a rolling twelve-month window including the incomplete current
+month; the group/category/payment rankings and top ten spenders are all-time.
+Ranking bars are relative to the largest amount in their panel, not shares of
+the platform total. Debt tiles sum recorded amounts including settled records,
+not outstanding-only balances. These scopes are visible in both languages.
+Zero amounts have zero-length bars, and the trend's named table preserves exact
+amounts, expense counts and new-user counts. Long categories and identities wrap.
+This is a read-only, online admin view: failed reads show an error and nothing
+is queued in the offline outbox.
 **Done** — the response contains distributions and totals and no `items` array,
 proven by `test_admin_oversight.py`.
 
