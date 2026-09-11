@@ -5,7 +5,7 @@
  * dump and a batch account creation are not row actions, and the export in
  * particular now leaves an audit entry, which deserves saying out loud.
  */
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { AdminUserImportRow } from "@poipoihisab/api-client";
 import { apiAdminDownloadUsersCsv, apiAdminImportUsers } from "@poipoihisab/api-client";
 import { IconDownload, IconUpload } from "../../components/icons";
@@ -26,6 +26,12 @@ export function AdminData() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(null), 5000);
+    return () => clearTimeout(timer);
+  }, [success]);
 
   const download = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -142,6 +148,7 @@ export function AdminData() {
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
+          aria-label={w(lang, "adminImportUploadPrompt")}
           className="mt-3 flex w-full flex-col items-center justify-center rounded-card border-2 border-dashed border-line/80 bg-surface-2/30 p-6 text-center transition-all hover:border-emerald/60 hover:bg-emerald/5"
         >
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald/10 text-emerald">
@@ -156,6 +163,7 @@ export function AdminData() {
           <button
             type="button"
             onClick={handleSample}
+            aria-label={w(lang, "adminImportTemplate")}
             className="text-xs font-semibold text-emerald transition-colors hover:underline"
           >
             ↓ {w(lang, "adminImportTemplate")}
@@ -172,24 +180,26 @@ export function AdminData() {
             <h3 className="text-xs font-bold text-ink">
               {lang === "bn" ? "আমদানি প্রিভিউ" : "Import preview"}
             </h3>
-            <div className="max-h-52 overflow-y-auto rounded-card border border-line/60 bg-surface">
+            <div className="max-h-52 overflow-auto rounded-card border border-line/60 bg-surface">
               <table className="w-full text-left text-xs">
                 <thead className="sticky top-0 border-b border-line/40 bg-surface-2 text-[10px] uppercase text-muted">
                   <tr>
                     <th className="px-3 py-2">{w(lang, "adminUserName")}</th>
                     <th className="px-3 py-2">{w(lang, "adminUserEmail")}</th>
-                    <th className="px-3 py-2 text-right">Password</th>
+                    <th className="px-3 py-2 text-right">{w(lang, "adminUserPassword")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/30">
                   {rows.slice(0, 50).map((row) => (
                     <tr key={row.email} className="hover:bg-surface-2/40">
-                      <td className="px-3 py-2 font-medium text-ink">{row.name}</td>
-                      <td className="max-w-[180px] truncate px-3 py-2 font-en text-muted">
+                      <td className="max-w-[140px] truncate px-3 py-2 font-medium text-ink" title={row.name}>
+                        {row.name}
+                      </td>
+                      <td className="max-w-[180px] truncate px-3 py-2 font-en text-muted" title={row.email}>
                         {row.email}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-[11px] text-muted">
-                        {row.password ? "••••••••" : "(Auto)"}
+                        {row.password ? "••••••••" : lang === "bn" ? "(অটো)" : "(Auto)"}
                       </td>
                     </tr>
                   ))}

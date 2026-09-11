@@ -809,6 +809,86 @@ describe("/admin/data", () => {
 
     expect(await screen.findByText(w("bn", "adminDataExportDesc"))).toBeInTheDocument();
   });
+
+  function fileWithText(text: string, name = "users.csv"): File {
+    const f = new File([text], name, { type: "text/csv" });
+    Object.defineProperty(f, "text", { value: () => Promise.resolve(text) });
+    return f;
+  }
+
+  it("cancels the success timer when leaving the data screen", async () => {
+    asSuperAdmin();
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    const view = renderApp("/admin/data");
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      expect(await screen.findByText(w("bn", "adminDataExportTitle"))).toBeInTheDocument();
+      const file = fileWithText("name,email,password\nRahim,rahim@example.com,secret123\n");
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      expect(await screen.findByText("Rahim")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: w("bn", "adminImportUsers") }));
+      expect(await screen.findByText(/সফলভাবে আমদানি হয়েছে/)).toBeInTheDocument();
+      const index = timer.mock.calls.findLastIndex((call) => call[1] === 5000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      flashTimer = timer.mock.results[index].value;
+      view.unmount();
+      expect(clear).toHaveBeenCalledWith(flashTimer);
+    } finally {
+      view.unmount();
+      if (flashTimer !== undefined) clearTimeout(flashTimer);
+      timer.mockRestore();
+      clear.mockRestore();
+    }
+  });
+
+  it.each(["bn", "en"] as const)(
+    "renders import preview with bounded cells and localized headers in %s",
+    async (lang) => {
+      asSuperAdmin();
+      useLangStore.setState({ lang });
+      renderApp("/admin/data");
+      expect(await screen.findByText(w(lang, "adminDataExportTitle"))).toBeInTheDocument();
+      const longName = "A".repeat(80);
+      const longEmail = "verylonguseremailaddressthatshouldbetruncated@example.com";
+      const file = fileWithText(`name,email,password\n${longName},${longEmail},\n`);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      expect(await screen.findByText(longName)).toBeInTheDocument();
+      expect(screen.getByText(w(lang, "adminUserPassword"))).toBeInTheDocument();
+      expect(screen.getByText(lang === "bn" ? "(অটো)" : "(Auto)")).toBeInTheDocument();
+      const nameCell = screen.getByText(longName);
+      expect(nameCell.className).toContain("truncate");
+      const emailCell = screen.getByText(longEmail);
+      expect(emailCell.className).toContain("truncate");
+    },
+  );
+
+  it("shows an error banner when CSV has no valid user rows", async () => {
+    asSuperAdmin();
+    renderApp("/admin/data");
+    expect(await screen.findByText(w("bn", "adminDataExportTitle"))).toBeInTheDocument();
+    const file = fileWithText("invalid,header,only\n1,2,3\n", "bad.csv");
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(
+      await screen.findByText(/ফাইলে কোনো বৈধ ব্যবহারকারী তথ্য পাওয়া যায়নি/),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error banner when export fails", async () => {
+    asSuperAdmin();
+    stubFetch((req, url) =>
+      url.pathname === "/api/v1/admin/export/users.csv"
+        ? makeResponse(500, { detail: "Database connection failed" })
+        : adminHandler()(req, url),
+    );
+    renderApp("/admin/data");
+    expect(await screen.findByText(w("bn", "adminDataExportTitle"))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: w("bn", "adminExportCsv") }));
+    expect(await screen.findByText("Database connection failed")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------

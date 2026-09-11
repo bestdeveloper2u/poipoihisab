@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 19 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 20 / 28 · building: **nothing**
 
 ---
 
@@ -34,7 +34,7 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.3** User inspector | `/admin/users/:userId` | screen |
 | [x]  | **R2.4** Platform analytics | `/admin/analytics` | screen |
 | [x]  | **R2.5** Category taxonomy | `/admin/categories` | screen |
-| [!]  | **R2.6** Data import and export | `/admin/data` | screen |
+| [x]  | **R2.6** Data import and export | `/admin/data` | screen |
 | [!]  | **R2.7** Audit log | `/admin/audit` | screen |
 | [!]  | **R2.8** Admins and roles | `/admin/roles` | screen |
 | [!]  | **R2.9** Sessions and security | `/admin/security` | screen |
@@ -60,6 +60,31 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-11 (R2.6) — **A hardcoded English header lived in an otherwise localized table.**
+
+The data import and export verification closes the next admin browser clause.
+Synthetic CSV files covered valid user batches, empty/malformed files with missing
+required columns, long unbroken names (80+ characters), long email addresses,
+and passwords. The export card, sample template link, CSV upload dropzone, and
+import preview table were checked across 1440, 980 and 375px viewports in both
+Bengali and English.
+
+The preview table contained a hardcoded English "Password" column header; this
+is now localized in bn ("পাসওয়ার্ড") and en ("Password") via `adminUserPassword`.
+The "(Auto)" fallback for generated passwords is now localized as "(অটো)" in
+Bengali. The import preview table was constrained with `overflow-auto` and
+per-cell truncation (`truncate`, `max-w-*`) so oversized names or emails do not
+blow out the card or horizontal viewport at 375px. The CSV dropzone and sample
+download buttons received explicit `aria-label` attributes for accessibility.
+A `useEffect` timer cleanup was introduced to auto-dismiss import success messages
+after 5 seconds and cancel pending timers if the operator leaves the page.
+
+Five automated tests in `tests/admin-screen.test.tsx` verify the export card and
+its audit disclaimer, timer cleanup on unmount, preview cell truncation and
+localized headers across Bengali and English, invalid CSV error handling, and
+graceful API export failure. Full web test suite passes with 584 tests across all
+60 test files. Production web build and status audits pass cleanly. R2.7 is next.
 
 ### 2026-09-11 (R2.5) — **A success timeout survived leaving the categories screen.**
 
