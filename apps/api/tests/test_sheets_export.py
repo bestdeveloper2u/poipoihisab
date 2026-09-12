@@ -407,6 +407,7 @@ async def test_uninitialized_sheet_bootstraps_full_template_and_syncs(api, googl
     ]
     from app.routers.sheets_bootstrap import (
         BN_MONTHS,
+        GUIDE,
         SETTINGS,
         SUMMARY,
         TAB_BUDGET,
@@ -414,7 +415,7 @@ async def test_uninitialized_sheet_bootstraps_full_template_and_syncs(api, googl
         TAB_RECURRING,
     )
     all_months = [f"{m} ২০২৬" for m in BN_MONTHS]
-    created = [SUMMARY, TAB_RECURRING, TAB_DEBTS, TAB_BUDGET, SETTINGS, *all_months]
+    created = [GUIDE, SUMMARY, TAB_RECURRING, TAB_DEBTS, TAB_BUDGET, SETTINGS, *all_months]
     http.side_effect = responses(
         {"sheets": [{"properties": {"title": "Sheet1", "sheetId": 0}}]},
         {},
@@ -428,7 +429,8 @@ async def test_uninitialized_sheet_bootstraps_full_template_and_syncs(api, googl
     data = response.json()
     assert data["rows"] == 1
     assert SEPT in data["months"]
-    assert len(data["created_tabs"]) > 0
+    assert len(data["created_tabs"]) == 18
+    assert GUIDE in data["created_tabs"]
 
 
 async def test_uninitialized_sheet_bootstraps_english_template_for_english_user(api, google):
@@ -447,6 +449,7 @@ async def test_uninitialized_sheet_bootstraps_english_template_for_english_user(
     from app.routers.sheets_locale import LOCALE_EN
     all_months = [f"{m} 2026" for m in LOCALE_EN.months]
     created = [
+        LOCALE_EN.tab_guide,
         LOCALE_EN.tab_summary,
         LOCALE_EN.tab_recurring,
         LOCALE_EN.tab_debts,
@@ -467,6 +470,7 @@ async def test_uninitialized_sheet_bootstraps_english_template_for_english_user(
     data = response.json()
     assert data["rows"] == 1
     assert "September 2026" in data["months"]
+    assert "Instructions" in data["created_tabs"]
     assert "Settings" in data["created_tabs"]
     assert "Annual Summary" in data["created_tabs"]
     assert "Debts" in data["created_tabs"]
@@ -475,28 +479,61 @@ async def test_uninitialized_sheet_bootstraps_english_template_for_english_user(
 
 
 def test_bootstrap_structural_includes_full_visual_styling():
-    """Verify that build_bootstrap_structural creates requests for titles, headers, widths, and borders."""
+    """Verify that build_bootstrap_structural creates requests for 18 tabs, titles, headers, widths, and borders."""
     from app.routers.sheets_bootstrap import build_bootstrap_structural
     requests, delete_id, created_tabs = build_bootstrap_structural(
         {"sheets": [{"properties": {"sheetId": 0, "title": "Sheet1"}}]}
     )
     assert delete_id == 0
-    assert len(created_tabs) == 17
+    assert len(created_tabs) == 18
     add_sheets = [r["addSheet"] for r in requests if "addSheet" in r]
     merges = [r["mergeCells"] for r in requests if "mergeCells" in r]
     repeats = [r["repeatCell"] for r in requests if "repeatCell" in r]
     dimensions = [r["updateDimensionProperties"] for r in requests if "updateDimensionProperties" in r]
     borders = [r["updateBorders"] for r in requests if "updateBorders" in r]
 
-    assert len(add_sheets) == 17
+    assert len(add_sheets) == 18
     for s in add_sheets:
-        assert s["properties"]["gridProperties"]["frozenRowCount"] in (1, 3)
+        assert s["properties"]["gridProperties"]["frozenRowCount"] in (1, 2, 3)
         assert s["properties"]["tabColor"]["red"] == 0.122
 
-    assert len(merges) >= 16
+    assert len(merges) >= 18
     assert len(repeats) > 0
     assert len(dimensions) > 0
-    assert len(borders) >= 16
+    assert len(borders) >= 18
+
+
+def test_bootstrap_values_includes_side_panels_and_formulas():
+    """Verify that build_bootstrap_values generates guide text, side panels, and formulas."""
+    from app.routers.sheets_bootstrap import build_bootstrap_values
+    from app.routers.sheets_locale import LOCALE_BN
+    values_data = build_bootstrap_values(year=2026, lang="bn")
+    ranges = {item["range"] for item in values_data}
+
+    # Guide tab
+    assert f"'{LOCALE_BN.tab_guide}'!B2" in ranges
+    assert f"'{LOCALE_BN.tab_guide}'!B4:C24" in ranges or any(r.startswith(f"'{LOCALE_BN.tab_guide}'!B4:C") for r in ranges)
+
+    # Settings tab
+    assert f"'{LOCALE_BN.tab_settings}'!A1:I1" in ranges
+    assert any(r.startswith(f"'{LOCALE_BN.tab_settings}'!A2:A") for r in ranges)
+
+    # Monthly tab side panel (September 2026)
+    sept_tab = LOCALE_BN.tab_name(2026, 9)
+    assert f"'{sept_tab}'!I1" in ranges
+    assert f"'{sept_tab}'!I3:K3" in ranges
+    assert f"'{sept_tab}'!I4:K11" in ranges
+    assert f"'{sept_tab}'!I12:K12" in ranges
+    assert f"'{sept_tab}'!I15:J20" in ranges
+
+    # Debts & Recurring side panels
+    assert f"'{LOCALE_BN.tab_debts}'!I4:J9" in ranges
+    assert f"'{LOCALE_BN.tab_recurring}'!L4:M8" in ranges
+
+    # Budget formulas
+    assert f"'{LOCALE_BN.tab_budget}'!A3:F3" in ranges
+    assert any(r.startswith(f"'{LOCALE_BN.tab_budget}'!A4:F") for r in ranges)
+
 
 
 async def test_a_full_month_refuses_rather_than_truncating(api, google):
