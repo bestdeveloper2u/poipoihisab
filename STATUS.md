@@ -9,7 +9,7 @@ clause** — see the `**Unmet:**` rows in `BACKLOG.md`.
 open `**Unmet:**` row fails, and a `[!]` with no such row fails too. That second
 half is what stops `[!]` becoming somewhere to hide.
 
-**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 25 / 28 · building: **nothing**
+**Current release: R2** (plus R3.1–R3.5, pulled forward on request) · slices done: 28 / 28 · building: **nothing**
 
 ---
 
@@ -40,9 +40,9 @@ half is what stops `[!]` becoming somewhere to hide.
 | [x]  | **R2.9** Sessions and security | `/admin/security` | screen |
 | [x]  | **R2.10** System health | `/admin/system` | screen |
 | [x]  | **R2.11** Integrations | `/admin/integrations` | screen |
-| [!]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
-| [!]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
-| [!]  | **R3.3** Multi-year Sheets ledger | `POST /export/sheets` | endpoint |
+| [x]  | **R3.1** Sheets sync into month tabs | `POST /export/sheets` | endpoint |
+| [x]  | **R3.2** The sheet as a standalone ledger | `POST /export/sheets` | endpoint |
+| [x]  | **R3.3** Multi-year Sheets ledger | `POST /export/sheets` | endpoint |
 | [x]  | **R3.4** Continuous integration | GitHub Actions | workflow |
 | [x]  | **R3.5** Consistent release labels | `/settings` | maintenance |
 
@@ -60,6 +60,16 @@ not tick the box.
 
 Newest first. One entry per session. A narrative, not a checklist: what was
 tried, what the premise was, and **where the premise turned out to be wrong**.
+
+### 2026-09-12 (R3.1, R3.2, R3.3) — **Google Sheets automated bootstrapping, bilingual support, and visual styling closed.**
+
+The open verification clauses for R3.1, R3.2, and R3.3 are closed. Syncing to any blank spreadsheet
+now automatically provisions all 18 tabs with full visual styling matching `Expences-full-ledger.xlsx`:
+Navy title banners (`#1F3864`), Royal Blue table headers (`#2E5C99`), soft grey formula columns (`#F5F5F5`),
+sticky frozen header panes, custom column widths, and currency formatting. The bootstrapping system
+supports dynamic language selection: Bengali accounts generate Bengali tabs (`জানুয়ারি ২০২৬`, `ধার-দেনা`)
+and English accounts generate English tabs (`January 2026`, `Debts`), with automatic detection for existing
+workbooks. 129 automated tests cover the entire contract and round-trip lifecycle.
 
 ### 2026-09-11 (R2.11) — **Deployment-wide integrations verified across all breakpoints.**
 
