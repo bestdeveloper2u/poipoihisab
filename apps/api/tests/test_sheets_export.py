@@ -431,6 +431,49 @@ async def test_uninitialized_sheet_bootstraps_full_template_and_syncs(api, googl
     assert len(data["created_tabs"]) > 0
 
 
+async def test_uninitialized_sheet_bootstraps_english_template_for_english_user(api, google):
+    """When user.lang == 'en', a blank sheet is bootstrapped with English tabs and headers."""
+    client, db, app = api
+    _, _c, _f, http = google
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=OWNER, lang="en")
+    row = (date(2026, 9, 1), None, "food", "Tea", Decimal("5.00"), "cash", uuid.uuid4())
+    db.execute.side_effect = [
+        page(row),
+        page(),
+        page(),
+        page(),
+        single(None),
+    ]
+    from app.routers.sheets_locale import LOCALE_EN
+    all_months = [f"{m} 2026" for m in LOCALE_EN.months]
+    created = [
+        LOCALE_EN.tab_summary,
+        LOCALE_EN.tab_recurring,
+        LOCALE_EN.tab_debts,
+        LOCALE_EN.tab_budget,
+        LOCALE_EN.tab_settings,
+        *all_months,
+    ]
+    http.side_effect = responses(
+        {"sheets": [{"properties": {"title": "Sheet1", "sheetId": 0}}]},
+        {},
+        {},
+        sheet_meta(*created),
+        {"values": [["Tea", "Coffee"]]},
+        {},
+    )
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["rows"] == 1
+    assert "September 2026" in data["months"]
+    assert "Settings" in data["created_tabs"]
+    assert "Annual Summary" in data["created_tabs"]
+    assert "Debts" in data["created_tabs"]
+    assert "Budget" in data["created_tabs"]
+    assert "Recurring Expenses" in data["created_tabs"]
+
+
 async def test_a_full_month_refuses_rather_than_truncating(api, google):
     client, db, _ = api
     _, _c, _f, http = google

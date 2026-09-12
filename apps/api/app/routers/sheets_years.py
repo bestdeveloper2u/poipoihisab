@@ -11,10 +11,12 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
-SUMMARY = "বার্ষিক সারসংক্ষেপ"
-SETTINGS = "সেটিংস"
+from app.routers.sheets_locale import LOCALE_BN, SheetsLocale
+
+SUMMARY = LOCALE_BN.tab_summary
+SETTINGS = LOCALE_BN.tab_settings
 BASE_YEAR = 2026
-DIGITS = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
+DIGITS = LOCALE_BN.digits
 
 
 class TemplateError(ValueError):
@@ -58,12 +60,19 @@ def plan_years(
     years: list[int],
     tab_name: Callable[[int, int], str],
     registry: list[list[Any]],
+    locale: SheetsLocale | None = None,
 ) -> tuple[list[dict], list[str]]:
     """Plan complete absent years. Refuse partial years or registry collisions.
 
     The caller checks every expense/ledger row cap BEFORE submitting these requests.
     No request here changes an existing month, summary, or budget selection.
     """
+    loc = locale or LOCALE_BN
+    summary_tab = loc.tab_summary
+    settings_tab = loc.tab_settings
+    budget_tab = loc.tab_budget
+    digits = loc.digits
+
     sheets = {s["properties"]["title"]: s for s in metadata["sheets"]}
     if not years:
         return [], []
@@ -72,11 +81,11 @@ def plan_years(
     if any(year < 1900 or year > 9999 for year in years):
         raise TemplateError("Automatic rollover supports years 1900 through 9999")
     source_titles = [tab_name(BASE_YEAR, m) for m in range(1, 13)]
-    if not all(t in sheets for t in [SUMMARY, SETTINGS, *source_titles]):
+    if not all(t in sheets for t in [summary_tab, settings_tab, *source_titles]):
         raise TemplateError("Keep the complete 2026 template, including its yearly summary")
     if any(tab_name(y, m) in sheets for y in years for m in range(1, 13)):
         raise TemplateError("A requested year is only partly present; restore its missing tabs")
-    new_summaries = [f"{SUMMARY} {str(y).translate(DIGITS)}" for y in years]
+    new_summaries = [f"{summary_tab} {str(y).translate(digits) if digits else str(y)}" for y in years]
     if any(t in sheets for t in new_summaries):
         raise TemplateError("A yearly summary already exists without all twelve month tabs")
     for title in source_titles:
@@ -88,7 +97,7 @@ def plan_years(
             raise TemplateError("Custom monthly charts need a manual rollover")
 
     props = summary["properties"]
-    if props["sheetId"] != sheets[SUMMARY]["properties"]["sheetId"]:
+    if props["sheetId"] != sheets[summary_tab]["properties"]["sheetId"]:
         raise TemplateError("The yearly summary changed during inspection; retry")
     # Read formula strings, not cached numbers: an old year's cached totals
     # cannot prove that the new summary has a dependency on each new month.
@@ -234,7 +243,7 @@ def plan_years(
             {
                 "findReplace": {
                     "sheetId": summary_id,
-                    "find": f"'{SUMMARY}'!",
+                    "find": f"'{summary_tab}'!",
                     "replacement": f"'{summary_title}'!",
                     "includeFormulas": True,
                     "matchCase": True,
@@ -243,7 +252,7 @@ def plan_years(
             }
         )
         requests.append(
-            _text(summary_id, f"বার্ষিক খরচের সারসংক্ষেপ  —  {str(year).translate(DIGITS)}")
+            _text(summary_id, f"{summary_tab}  —  {str(year).translate(digits) if digits else str(year)}")
         )
         for chart in summary.get("charts", []):
             copied = {k: chart[k] for k in ("spec", "position", "border") if k in chart}
@@ -253,10 +262,10 @@ def plan_years(
 
     named = next((n for n in metadata.get("namedRanges", []) if n["name"] == "MonthTabs"), None)
     if named is None:
-        if "বাজেট" in sheets:
+        if budget_tab in sheets:
             raise TemplateError("The budget tab needs the template's MonthTabs named range")
         return requests, created  # Older expense-only templates have no picker.
-    settings = sheets[SETTINGS]["properties"]
+    settings = sheets[settings_tab]["properties"]
     rng = named["range"]
     first, end = rng.get("startRowIndex"), rng.get("endRowIndex", 0)
     if (
@@ -319,18 +328,18 @@ def plan_years(
             }
         }
     )
-    if "বাজেট" in sheets:
+    if budget_tab in sheets:
         # XLSX import can resolve a named validation to a fixed A1 range.
         # Updating the name alone would then leave the picker at twelve months.
         requests.append(
             {
                 "setDataValidation": {
-                    "range": _range(sheets["বাজেট"]["properties"]["sheetId"], 1, 2, 1, 2),
+                    "range": _range(sheets[budget_tab]["properties"]["sheetId"], 1, 2, 1, 2),
                     "rule": {
                         "condition": {
                             "type": "ONE_OF_RANGE",
                             "values": [
-                                {"userEnteredValue": f"='{SETTINGS}'!$I$2:$I${new_end}"},
+                                {"userEnteredValue": f"='{settings_tab}'!$I$2:$I${new_end}"},
                             ],
                         },
                         "strict": True,

@@ -100,7 +100,13 @@ from app.routers.sheets_bootstrap import (
     build_bootstrap_values,
     is_uninitialized_spreadsheet,
 )
-from app.routers.sheets_years import SUMMARY, TemplateError, plan_years
+from app.routers.sheets_locale import (
+    LOCALE_BN,
+    SheetsLocale,
+    detect_sheet_lang,
+    get_locale,
+)
+from app.routers.sheets_years import TemplateError, plan_years
 
 # google-auth is imported lazily (first Sheets use) — keeps serverless cold
 # starts lean for the 99% of traffic that never touches Sheets. Tests patch
@@ -140,35 +146,13 @@ _ID = r"[A-Za-z0-9_-]{1,200}"
 _ROW_FIRST, _ROW_LAST = 4, 203
 _ROWS_PER_MONTH = _ROW_LAST - _ROW_FIRST + 1
 
-# Tab titles are Bengali month plus Bengali-digit year: "সেপ্টেম্বর ২০২৬".
-_BN_MONTHS = (
-    "জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন",
-    "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর",
-)
-
-# The workbook's payment dropdown reads from 'সেটিংস'!G2:G7 and its validation
-# rejects anything else, so the app's enum has to arrive as those exact
-# strings. Only `card` differs in wording from the app's own label ("কার্ড").
-_PAY_BN = {
-    "cash": "নগদ টাকা",
-    "bkash": "বিকাশ",
-    "nagad": "নগদ (অ্যাপ)",
-    "rocket": "রকেট",
-    "card": "ডেবিট / ক্রেডিট কার্ড",
-    "bank": "ব্যাংক ট্রান্সফার",
-}
-
-# Where the workbook keeps its category list. Used twice: to warn the caller
-# which categories the sheet cannot place in a group, and to order the budget
-# rows the way the settings sheet lists them.
-_CATEGORY_RANGE = "'সেটিংস'!B2:B"
-
-# ── The three whole-state ledger tabs ──────────────────────────────────────
-# Titles and row bounds are the contract with scripts/add_ledger_sheets.py,
-# which builds these sheets. Both files have to name the same numbers.
-_TAB_DEBTS = "ধার-দেনা"
-_TAB_BUDGET = "বাজেট"
-_TAB_RECURRING = "পুনরাবৃত্ত খরচ"
+# Backwards-compatible defaults (Bengali)
+_BN_MONTHS = LOCALE_BN.months
+_PAY_BN = LOCALE_BN.payments
+_CATEGORY_RANGE = LOCALE_BN.category_range
+_TAB_DEBTS = LOCALE_BN.tab_debts
+_TAB_BUDGET = LOCALE_BN.tab_budget
+_TAB_RECURRING = LOCALE_BN.tab_recurring
 
 _DEBT_FIRST, _DEBT_LAST = 4, 103
 _BUDGET_FIRST, _BUDGET_LAST = 4, 53
@@ -179,23 +163,14 @@ _RECUR_ROWS = _RECUR_LAST - _RECUR_FIRST + 1
 #: The budget's single monthly total. One cell, not a row.
 _BUDGET_TOTAL_CELL = "D2"
 
-# Each of these dropdowns rejects anything outside its list, so the app's
-# enums have to arrive as these exact strings. The wording is the app's own,
-# taken from web-i18n (`dGave`/`dTook`, `rFreq*`, `rActive`/`rPaused`), so a
-# row reads the same in the sheet as it does on screen.
-_DIR_BN = {"lend": "ধার দিয়েছি", "borrow": "ধার নিয়েছি"}
-_FREQ_BN = {
-    "daily": "প্রতিদিন",
-    "weekly": "প্রতি সপ্তাহে",
-    "monthly": "প্রতি মাসে",
-    "yearly": "প্রতি বছরে",
-}
-_ACTIVE_ON, _ACTIVE_OFF = "চালু", "বন্ধ"
+_DIR_BN = LOCALE_BN.dir_map
+_FREQ_BN = LOCALE_BN.freq_map
+_ACTIVE_ON, _ACTIVE_OFF = LOCALE_BN.active_on, LOCALE_BN.active_off
 
 
-def _tab_name(year: int, month: int) -> str:
+def _tab_name(year: int, month: int, lang: str = "bn") -> str:
     """Monthly tab title for a year and 1-indexed month."""
-    return f"{_BN_MONTHS[month - 1]} {str(year).translate(_DIGITS)}"
+    return get_locale(lang).tab_name(year, month)
 
 
 def _error(status: int, code: str, bn: str, en: str) -> HTTPException:
@@ -497,7 +472,9 @@ def _decimal_text(value: Any) -> str | None:
         return None
 
 
-async def _debt_rows(db: AsyncSession, user_id: uuid.UUID) -> list[list[str]]:
+async def _debt_rows(
+    db: AsyncSession, user_id: uuid.UUID, loc: SheetsLocale = LOCALE_BN
+) -> list[list[str]]:
     """Debt rows in the debt sheet's column order, oldest first.
 
     ``amt`` is the OUTSTANDING amount, not the original loan: a partial
@@ -517,7 +494,7 @@ async def _debt_rows(db: AsyncSession, user_id: uuid.UUID) -> list[list[str]]:
         [
             iso.isoformat(),
             _safe_text(party),
-            _DIR_BN.get(direction, _safe_text(direction)),
+            loc.dir_map.get(direction, _safe_text(direction)),
             _money(amt),
             _safe_text(note or ""),
             "",
@@ -553,7 +530,9 @@ async def _budget_rows(
     return _money(total), [[_safe_text(name), amount] for name, amount in entries]
 
 
-async def _recurring_rows(db: AsyncSession, user_id: uuid.UUID) -> list[list[str]]:
+async def _recurring_rows(
+    db: AsyncSession, user_id: uuid.UUID, loc: SheetsLocale = LOCALE_BN
+) -> list[list[str]]:
     """Recurring rules in the recurring sheet's column order, oldest first.
 
     Columns B (গ্রুপ) and J (মাসিক সমমান) are left empty: B is the same
@@ -583,12 +562,12 @@ async def _recurring_rows(db: AsyncSession, user_id: uuid.UUID) -> list[list[str
             _safe_text(cat),
             "",
             _money(amt),
-            _PAY_BN.get(pay, _safe_text(pay)),
+            loc.payments.get(pay, _safe_text(pay)),
             _safe_text(desc or ""),
-            _FREQ_BN.get(freq, _safe_text(freq)),
+            loc.freq_map.get(freq, _safe_text(freq)),
             start.isoformat(),
             following.isoformat(),
-            _ACTIVE_ON if active else _ACTIVE_OFF,
+            loc.active_on if active else loc.active_off,
             "",
         ]
         for cat, amt, pay, desc, freq, start, following, active in (
@@ -615,6 +594,11 @@ async def export_sheets(
         titles = {sheet["properties"]["title"] for sheet in metadata.get("sheets", [])}
     except (TypeError, KeyError, AttributeError):
         raise _upstream() from None
+
+    is_uninit = is_uninitialized_spreadsheet(list(titles))
+    user_lang = getattr(user, "lang", "bn") or "bn"
+    effective_lang = user_lang if is_uninit else detect_sheet_lang(titles)
+    loc = get_locale(effective_lang)
 
     start = end = None
     requested: tuple[int, int] | None = None
@@ -654,22 +638,24 @@ async def export_sheets(
                     # NOT digit-translated. Bengali numerals here would arrive as
                     # text and every SUM on the sheet would skip the row.
                     amt,
-                    _PAY_BN.get(pay, _safe_text(pay)),
+                    loc.payments.get(pay, _safe_text(pay)),
                 ]
             )
 
     # If the spreadsheet is uninitialized (e.g. fresh blank sheet with Sheet1),
     # automatically provision the complete template so the sync can proceed.
     bootstrapped_tabs: list[str] = []
-    if is_uninitialized_spreadsheet(list(titles)):
-        struct_reqs, _, bootstrapped_tabs = build_bootstrap_structural(metadata, year=2026)
+    if is_uninit:
+        struct_reqs, _, bootstrapped_tabs = build_bootstrap_structural(
+            metadata, year=2026, lang=effective_lang
+        )
         if struct_reqs:
             await run_in_threadpool(
                 _google, "POST", base + ":batchUpdate", token,
                 json={"requests": struct_reqs},
             )
         user_cats = {row[2].lstrip("'") for rows in by_month.values() for row in rows}
-        values_data = build_bootstrap_values(user_cats, year=2026)
+        values_data = build_bootstrap_values(user_cats, year=2026, lang=effective_lang)
         if values_data:
             await run_in_threadpool(
                 _google, "POST", base + "/values:batchUpdate", token,
@@ -688,15 +674,20 @@ async def export_sheets(
     # leave some months replaced and others stale, which is harder to notice
     # and harder to undo than a refusal.
     absent = [
-        _tab_name(*key) for key in sorted(by_month) if _tab_name(*key) not in titles
+        loc.tab_name(*key) for key in sorted(by_month) if loc.tab_name(*key) not in titles
     ]
-    new_years = sorted({y for y, m in by_month if _tab_name(y, m) not in titles})
+    new_years = sorted({y for y, m in by_month if loc.tab_name(y, m) not in titles})
     if new_years and not all(
-        title in titles for title in [SUMMARY, "সেটিংস", *[_tab_name(2026, m) for m in range(1, 13)]]
+        title in titles
+        for title in [
+            loc.tab_summary,
+            loc.tab_settings,
+            *[loc.tab_name(2026, m) for m in range(1, 13)],
+        ]
     ):
-        raise _missing_tabs(absent or [_tab_name(*key) for key in by_month])
+        raise _missing_tabs(absent or [loc.tab_name(*key) for key in by_month])
     overflow = [
-        f"{_tab_name(*key)}: {len(rows)}"
+        f"{loc.tab_name(*key)}: {len(rows)}"
         for key, rows in sorted(by_month.items())
         if len(rows) > _ROWS_PER_MONTH
     ]
@@ -705,13 +696,13 @@ async def export_sheets(
 
     # The workbook's own category list, in its own order. Read once and used
     # twice — to name the categories the sheet cannot place in a group, and to
-    # sort the budget rows the way সেটিংস lists them.
+    # sort the budget rows the way settings lists them.
     order: list[str] = []
-    if _CATEGORY_RANGE.split("!")[0].strip("'") in titles:
+    if loc.tab_settings in titles:
         listed = await run_in_threadpool(
             _google,
             "GET",
-            base + "/values/" + quote(_CATEGORY_RANGE, safe=""),
+            base + "/values/" + quote(loc.category_range, safe=""),
             token,
             params={"majorDimension": "COLUMNS"},
         )
@@ -725,9 +716,11 @@ async def export_sheets(
     # Ledger rows are only fetched for tabs this workbook actually has, so a
     # skipped tab costs no query — and its categories stay out of `unmapped`,
     # which reports what the sheet cannot place, not what it was never sent.
-    debts = await _debt_rows(db, user.id) if _TAB_DEBTS in titles else []
-    recurring = await _recurring_rows(db, user.id) if _TAB_RECURRING in titles else []
-    if _TAB_BUDGET in titles:
+    debts = await _debt_rows(db, user.id, loc=loc) if loc.tab_debts in titles else []
+    recurring = (
+        await _recurring_rows(db, user.id, loc=loc) if loc.tab_recurring in titles else []
+    )
+    if loc.tab_budget in titles:
         budget_total, budget = await _budget_rows(db, user.id, order)
     else:
         budget_total, budget = "", []
@@ -735,7 +728,7 @@ async def export_sheets(
     # Reported, never rewritten — guessing at a category would put a number in
     # the wrong group, which is worse than the sheet's own reconciliation line
     # naming it. Every category the sync sends is checked, not just the
-    # expenses': a recurring rule in an unlisted category leaves its গ্রুপ
+    # expenses': a recurring rule in an unlisted category leaves its group
     # blank the same way, and a budget row in one sits outside its dropdown.
     unmapped: list[str] = []
     if order:
@@ -750,9 +743,9 @@ async def export_sheets(
     beyond = [
         f"{tab}: {len(rows)} / {limit}"
         for tab, rows, limit in (
-            (_TAB_DEBTS, debts, _DEBT_ROWS),
-            (_TAB_BUDGET, budget, _BUDGET_ROWS),
-            (_TAB_RECURRING, recurring, _RECUR_ROWS),
+            (loc.tab_debts, debts, _DEBT_ROWS),
+            (loc.tab_budget, budget, _BUDGET_ROWS),
+            (loc.tab_recurring, recurring, _RECUR_ROWS),
         )
         if len(rows) > limit
     ]
@@ -765,19 +758,19 @@ async def export_sheets(
         # only summary cells/dimensions and the picker registry, not expenses.
         snapshot = await run_in_threadpool(
             _google, "GET", base, token,
-            params={"ranges": f"'{SUMMARY}'", "fields":
+            params={"ranges": f"'{loc.tab_summary}'", "fields":
                     "sheets(properties,charts,data(startRow,startColumn,"
                     "rowMetadata(pixelSize,hiddenByUser),columnMetadata(pixelSize,hiddenByUser),"
                     "rowData(values(userEnteredValue))))"},
         )
         registry = await run_in_threadpool(
-            _google, "GET", base + "/values/" + quote("'সেটিংস'!I:I", safe=""), token,
+            _google, "GET", base + "/values/" + quote(f"'{loc.tab_settings}'!I:I", safe=""), token,
             params={"valueRenderOption": "FORMULA"},
         )
         try:
             structural, created_tabs = plan_years(
-                metadata, snapshot["sheets"][0], new_years, _tab_name,
-                registry.get("values", []),
+                metadata, snapshot["sheets"][0], new_years, loc.tab_name,
+                registry.get("values", []), locale=loc,
             )
         except TemplateError as exc:
             raise _error(409, "sheets_year_template_invalid",
@@ -801,31 +794,31 @@ async def export_sheets(
     count = 0
     for key in sorted(by_month):
         rows = by_month[key]
-        tab = _tab_name(*key)
+        tab = loc.tab_name(*key)
         data.append(_block(tab, _ROW_FIRST, _ROW_LAST, rows, "A:C", 0, 3))
         data.append(_block(tab, _ROW_FIRST, _ROW_LAST, rows, "E:F", 3, 5))
         count += len(rows)
 
-    # F (অবস্থা), B (গ্রুপ) and J (মাসিক সমমান) are skipped by writing around
+    # F (status), B (group) and J (monthly equiv) are skipped by writing around
     # them, which is why each sheet takes two spans rather than one.
-    if _TAB_DEBTS in titles:
-        data.append(_block(_TAB_DEBTS, _DEBT_FIRST, _DEBT_LAST, debts, "A:E", 0, 5))
-        data.append(_block(_TAB_DEBTS, _DEBT_FIRST, _DEBT_LAST, debts, "G:G", 6, 7))
-    if _TAB_BUDGET in titles:
-        data.append(_block(_TAB_BUDGET, _BUDGET_FIRST, _BUDGET_LAST, budget, "A:B", 0, 2))
+    if loc.tab_debts in titles:
+        data.append(_block(loc.tab_debts, _DEBT_FIRST, _DEBT_LAST, debts, "A:E", 0, 5))
+        data.append(_block(loc.tab_debts, _DEBT_FIRST, _DEBT_LAST, debts, "G:G", 6, 7))
+    if loc.tab_budget in titles:
+        data.append(_block(loc.tab_budget, _BUDGET_FIRST, _BUDGET_LAST, budget, "A:B", 0, 2))
         data.append(
             {
-                "range": f"'{_TAB_BUDGET}'!{_BUDGET_TOTAL_CELL}",
+                "range": f"'{loc.tab_budget}'!{_BUDGET_TOTAL_CELL}",
                 "majorDimension": "ROWS",
                 "values": [[budget_total]],
             }
         )
-    if _TAB_RECURRING in titles:
+    if loc.tab_recurring in titles:
         data.append(
-            _block(_TAB_RECURRING, _RECUR_FIRST, _RECUR_LAST, recurring, "A:A", 0, 1)
+            _block(loc.tab_recurring, _RECUR_FIRST, _RECUR_LAST, recurring, "A:A", 0, 1)
         )
         data.append(
-            _block(_TAB_RECURRING, _RECUR_FIRST, _RECUR_LAST, recurring, "C:I", 2, 9)
+            _block(loc.tab_recurring, _RECUR_FIRST, _RECUR_LAST, recurring, "C:I", 2, 9)
         )
 
     if data:
@@ -839,7 +832,7 @@ async def export_sheets(
 
     return SheetsExportResult(
         rows=count,
-        months=[_tab_name(*key) for key in sorted(by_month)],
+        months=[loc.tab_name(*key) for key in sorted(by_month)],
         unmapped=unmapped,
         debts=len(debts),
         budget_categories=len(budget),
@@ -847,7 +840,7 @@ async def export_sheets(
         created_tabs=bootstrapped_tabs + created_tabs,
         skipped_tabs=[
             tab
-            for tab in (_TAB_DEBTS, _TAB_BUDGET, _TAB_RECURRING)
+            for tab in (loc.tab_debts, loc.tab_budget, loc.tab_recurring)
             if tab not in titles
         ],
     )

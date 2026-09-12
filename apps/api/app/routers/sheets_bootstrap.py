@@ -1,115 +1,36 @@
 """Automated Google Sheets template bootstrapping for Poi Poi Hisab.
 
 When syncing to a blank or uninitialized spreadsheet, this module constructs
-the full 18-tab Bengali accounting template (matching Expences-full-ledger.xlsx)
+the full 18-tab accounting template (matching Expences-full-ledger.xlsx)
 in two atomic Google Sheets API calls:
 1. Structural batchUpdate (:batchUpdate): Creates all 12 month tabs, the 3 ledger
    tabs, settings, and yearly summary, then deletes the placeholder Sheet1.
 2. Values batchUpdate (/values:batchUpdate): Populates headers, column formulas
    (=IFERROR(VLOOKUP(...))), named ranges/lookups, and default category matrix.
+
+Supports both Bengali (`bn`) and English (`en`) based on the user's language.
 """
 
 from typing import Any
 
-from app.routers.sheets_years import BASE_YEAR, DIGITS, SETTINGS, SUMMARY
+from app.routers.sheets_locale import LOCALE_BN, get_locale
+from app.routers.sheets_years import BASE_YEAR
 
-TAB_DEBTS = "ধার-দেনা"
-TAB_BUDGET = "বাজেট"
-TAB_RECURRING = "পুনরাবৃত্ত খরচ"
-
-BN_MONTHS = [
-    "জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন",
-    "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর",
-]
-
-DEFAULT_CATEGORIES: list[tuple[str, str]] = [
-    # খাদ্য ও মুদি (food)
-    ("চাল", "খাদ্য ও মুদি"),
-    ("ডাল", "খাদ্য ও মুদি"),
-    ("তেল", "খাদ্য ও মুদি"),
-    ("সবজি", "খাদ্য ও মুদি"),
-    ("মাছ", "খাদ্য ও মুদি"),
-    ("মাংস", "খাদ্য ও মুদি"),
-    ("ডিম", "খাদ্য ও মুদি"),
-    ("দুধ", "খাদ্য ও মুদি"),
-    ("মসলা", "খাদ্য ও মুদি"),
-    ("আটা ও ময়দা", "খাদ্য ও মুদি"),
-    ("মুদি বাজার", "খাদ্য ও মুদি"),
-    ("কাঁচাবাজার", "খাদ্য ও মুদি"),
-    ("ফলমূল", "খাদ্য ও মুদি"),
-    ("হোটেল / রেস্তোরাঁ", "খাদ্য ও মুদি"),
-    ("নাস্তা ও চা", "খাদ্য ও মুদি"),
-    ("মিষ্টি ও বেকারি", "খাদ্য ও মুদি"),
-    # বাসস্থান (housing)
-    ("বাসা ভাড়া", "বাসস্থান"),
-    ("বাড়ি মেরামত", "বাসস্থান"),
-    ("আসবাবপত্র", "বাসস্থান"),
-    # ইউটিলিটি বিল (utility)
-    ("বিদ্যুৎ বিল", "ইউটিলিটি বিল"),
-    ("গ্যাস বিল", "ইউটিলিটি বিল"),
-    ("পানির বিল", "ইউটিলিটি বিল"),
-    ("ইন্টারনেট / ওয়াইফাই", "ইউটিলিটি বিল"),
-    ("ময়লা বিল", "ইউটিলিটি বিল"),
-    ("সার্ভিস চার্জ", "ইউটিলিটি বিল"),
-    # যাতায়াত (transport)
-    ("বাস ভাড়া", "যাতায়াত"),
-    ("রিকশা", "যাতায়াত"),
-    ("সিএনজি", "যাতায়াত"),
-    ("মেট্রোরেল", "যাতায়াত"),
-    ("উবার / রাইড", "যাতায়াত"),
-    ("জ্বালানি / পেট্রোল", "যাতায়াত"),
-    ("গাড়ি মেরামত", "যাতায়াত"),
-    # স্বাস্থ্য (health)
-    ("ওষুধ", "স্বাস্থ্য"),
-    ("ডাক্তার ফি", "স্বাস্থ্য"),
-    ("হাসপাতাল / ক্লিনিক", "স্বাস্থ্য"),
-    ("মেডিকেল টেস্ট", "স্বাস্থ্য"),
-    # শিক্ষা (education)
-    ("স্কুল / কলেজ ফি", "শিক্ষা"),
-    ("টিউশন ফি", "শিক্ষা"),
-    ("বই ও খাতা", "শিক্ষা"),
-    ("শিক্ষা উপকরণ", "শিক্ষা"),
-    # ব্যক্তিগত ও কেনাকাটা (personal)
-    ("মোবাইল রিচার্জ", "ব্যক্তিগত ও কেনাকাটা"),
-    ("কাপড়চোপড়", "ব্যক্তিগত ও কেনাকাটা"),
-    ("জুতা", "ব্যক্তিগত ও কেনাকাটা"),
-    ("প্রসাধন / পার্লার", "ব্যক্তিগত ও কেনাকাটা"),
-    ("উপহার", "ব্যক্তিগত ও কেনাকাটা"),
-    ("ইলেকট্রনিক্স", "ব্যক্তিগত ও কেনাকাটা"),
-    # বিনোদন (entertainment)
-    ("ঘোরাঘুরি ও ভ্রমণ", "বিনোদন"),
-    ("সিনেমা ও বিনোদন", "বিনোদন"),
-    # অন্যান্য (other)
-    ("দান ও সদকা", "অন্যান্য"),
-    ("ব্যাংক চার্জ", "অন্যান্য"),
-    ("ঋণ ও কিস্তি", "অন্যান্য"),
-]
-
-DEFAULT_GROUPS = [
-    "খাদ্য ও মুদি",
-    "বাসস্থান",
-    "ইউটিলিটি বিল",
-    "যাতায়াত",
-    "স্বাস্থ্য",
-    "শিক্ষা",
-    "ব্যক্তিগত ও কেনাকাটা",
-    "বিনোদন",
-    "অন্যান্য",
-]
-
-DEFAULT_PAYMENTS = [
-    "নগদ টাকা",
-    "বিকাশ",
-    "নগদ (অ্যাপ)",
-    "রকেট",
-    "ডেবিট / ক্রেডিট কার্ড",
-    "ব্যাংক ট্রান্সফার",
-]
+# Backwards-compatible aliases (defaults to Bengali)
+SETTINGS = LOCALE_BN.tab_settings
+SUMMARY = LOCALE_BN.tab_summary
+TAB_DEBTS = LOCALE_BN.tab_debts
+TAB_BUDGET = LOCALE_BN.tab_budget
+TAB_RECURRING = LOCALE_BN.tab_recurring
+BN_MONTHS = list(LOCALE_BN.months)
+DEFAULT_CATEGORIES = LOCALE_BN.default_categories
+DEFAULT_GROUPS = LOCALE_BN.default_groups
+DEFAULT_PAYMENTS = LOCALE_BN.payment_list
 
 
-def tab_name(year: int, month: int) -> str:
-    """Return the Bengali monthly tab title (e.g. 'সেপ্টেম্বর ২০২৬')."""
-    return f"{BN_MONTHS[month - 1]} {str(year).translate(DIGITS)}"
+def tab_name(year: int, month: int, lang: str = "bn") -> str:
+    """Return the monthly tab title (e.g. 'সেপ্টেম্বর ২০২৬' or 'September 2026')."""
+    return get_locale(lang).tab_name(year, month)
 
 
 def is_uninitialized_spreadsheet(titles: list[str]) -> bool:
@@ -121,13 +42,14 @@ def is_uninitialized_spreadsheet(titles: list[str]) -> bool:
 
 
 def build_bootstrap_structural(
-    metadata: dict[str, Any], year: int = BASE_YEAR
+    metadata: dict[str, Any], year: int = BASE_YEAR, lang: str = "bn"
 ) -> tuple[list[dict[str, Any]], int | None, list[str]]:
     """Generate the batchUpdate requests to add all template sheets and clean up placeholder sheet.
 
     Returns:
         (requests, delete_sheet_id, created_tab_names)
     """
+    loc = get_locale(lang)
     existing_sheets = metadata.get("sheets", [])
     used_ids = {
         s["properties"]["sheetId"]
@@ -148,75 +70,75 @@ def build_bootstrap_structural(
     requests: list[dict[str, Any]] = []
     created_tabs: list[str] = []
 
-    # 1. Add 'বার্ষিক সারসংক্ষেপ' (Annual Summary)
+    # 1. Add Yearly Summary
     summary_id = allocate_id()
     requests.append({
         "addSheet": {
             "properties": {
                 "sheetId": summary_id,
-                "title": SUMMARY,
+                "title": loc.tab_summary,
                 "gridProperties": {"rowCount": 100, "columnCount": 15},
             }
         }
     })
-    created_tabs.append(SUMMARY)
+    created_tabs.append(loc.tab_summary)
 
-    # 2. Add 'পুনরাবৃত্ত খরচ' (Recurring)
+    # 2. Add Recurring
     recurring_id = allocate_id()
     requests.append({
         "addSheet": {
             "properties": {
                 "sheetId": recurring_id,
-                "title": TAB_RECURRING,
+                "title": loc.tab_recurring,
                 "gridProperties": {"rowCount": 104, "columnCount": 11},
             }
         }
     })
-    created_tabs.append(TAB_RECURRING)
+    created_tabs.append(loc.tab_recurring)
 
-    # 3. Add 'ধার-দেনা' (Debts)
+    # 3. Add Debts
     debts_id = allocate_id()
     requests.append({
         "addSheet": {
             "properties": {
                 "sheetId": debts_id,
-                "title": TAB_DEBTS,
+                "title": loc.tab_debts,
                 "gridProperties": {"rowCount": 104, "columnCount": 11},
             }
         }
     })
-    created_tabs.append(TAB_DEBTS)
+    created_tabs.append(loc.tab_debts)
 
-    # 4. Add 'বাজেট' (Budget)
+    # 4. Add Budget
     budget_id = allocate_id()
     requests.append({
         "addSheet": {
             "properties": {
                 "sheetId": budget_id,
-                "title": TAB_BUDGET,
+                "title": loc.tab_budget,
                 "gridProperties": {"rowCount": 60, "columnCount": 10},
             }
         }
     })
-    created_tabs.append(TAB_BUDGET)
+    created_tabs.append(loc.tab_budget)
 
-    # 5. Add 'সেটিংস' (Settings)
+    # 5. Add Settings
     settings_id = allocate_id()
     requests.append({
         "addSheet": {
             "properties": {
                 "sheetId": settings_id,
-                "title": SETTINGS,
+                "title": loc.tab_settings,
                 "gridProperties": {"rowCount": 80, "columnCount": 12},
             }
         }
     })
-    created_tabs.append(SETTINGS)
+    created_tabs.append(loc.tab_settings)
 
-    # 6. Add all 12 Bengali month sheets (e.g. 'জানুয়ারি ২০২৬' .. 'ডিসেম্বর ২০২৬')
+    # 6. Add all 12 month sheets
     for m in range(1, 13):
         m_id = allocate_id()
-        m_title = tab_name(year, m)
+        m_title = loc.tab_name(year, m)
         requests.append({
             "addSheet": {
                 "properties": {
@@ -229,7 +151,6 @@ def build_bootstrap_structural(
         created_tabs.append(m_title)
 
     # Determine if we should delete the initial placeholder sheet (e.g. 'Sheet1')
-    # Only delete if it's the sole sheet and has a standard blank name
     delete_id: int | None = None
     if len(existing_sheets) == 1:
         sole_title = existing_titles[0]
@@ -242,73 +163,76 @@ def build_bootstrap_structural(
 
 
 def build_bootstrap_values(
-    custom_categories: set[str] | None = None, year: int = BASE_YEAR
+    custom_categories: set[str] | None = None,
+    year: int = BASE_YEAR,
+    lang: str = "bn",
 ) -> list[dict[str, Any]]:
     """Build the data payload for /values:batchUpdate to initialize template contents."""
+    loc = get_locale(lang)
     updates: list[dict[str, Any]] = []
 
-    # --- 1. 'সেটিংস' (Settings Sheet) ---
-    # Merge custom categories with default catalog
-    categories_map: dict[str, str] = dict(DEFAULT_CATEGORIES)
+    # --- 1. Settings Sheet ---
+    fallback_grp = "Other" if lang == "en" else "অন্যান্য"
+    categories_map: dict[str, str] = dict(loc.default_categories)
     if custom_categories:
         for cat in custom_categories:
             if cat and cat not in categories_map:
-                categories_map[cat] = "অন্যান্য"
+                categories_map[cat] = fallback_grp
 
     cat_rows = [[cat, grp] for cat, grp in categories_map.items()]
-    group_rows = [[grp] for grp in DEFAULT_GROUPS]
-    payment_rows = [[pay] for pay in DEFAULT_PAYMENTS]
-    month_rows = [[tab_name(year, m)] for m in range(1, 13)]
+    group_rows = [[grp] for grp in loc.default_groups]
+    payment_rows = [[pay] for pay in loc.payment_list]
+    month_rows = [[loc.tab_name(year, m)] for m in range(1, 13)]
 
     # Headers for Settings
     updates.append({
-        "range": f"'{SETTINGS}'!B1:I1",
+        "range": f"'{loc.tab_settings}'!B1:I1",
         "majorDimension": "ROWS",
-        "values": [["খাত (উপশ্রেণী)", "গ্রুপ (প্রধান খাত)", "", "গ্রুপ তালিকা", "", "পেমেন্ট মাধ্যম", "", "মাসিক শীটের তালিকা"]],
+        "values": [loc.settings_header_row()],
     })
     # Categories & Groups (B2:C...)
     updates.append({
-        "range": f"'{SETTINGS}'!B2:C{1 + len(cat_rows)}",
+        "range": f"'{loc.tab_settings}'!B2:C{1 + len(cat_rows)}",
         "majorDimension": "ROWS",
         "values": cat_rows,
     })
     # Groups (E2:E...)
     updates.append({
-        "range": f"'{SETTINGS}'!E2:E{1 + len(group_rows)}",
+        "range": f"'{loc.tab_settings}'!E2:E{1 + len(group_rows)}",
         "majorDimension": "ROWS",
         "values": group_rows,
     })
     # Payments (G2:G...)
     updates.append({
-        "range": f"'{SETTINGS}'!G2:G{1 + len(payment_rows)}",
+        "range": f"'{loc.tab_settings}'!G2:G{1 + len(payment_rows)}",
         "majorDimension": "ROWS",
         "values": payment_rows,
     })
     # Month list (I2:I13)
     updates.append({
-        "range": f"'{SETTINGS}'!I2:I{1 + len(month_rows)}",
+        "range": f"'{loc.tab_settings}'!I2:I{1 + len(month_rows)}",
         "majorDimension": "ROWS",
         "values": month_rows,
     })
 
     # --- 2. 12 Monthly Tabs ---
     for m in range(1, 13):
-        m_title = tab_name(year, m)
+        m_title = loc.tab_name(year, m)
         # Title in A1
         updates.append({
             "range": f"'{m_title}'!A1",
             "majorDimension": "ROWS",
-            "values": [[f"দৈনিক খরচের হিসাব  —  {m_title}"]],
+            "values": [[f"{loc.monthly_title_prefix}  —  {m_title}"]],
         })
         # Table Header in Row 3
         updates.append({
             "range": f"'{m_title}'!A3:G3",
             "majorDimension": "ROWS",
-            "values": [["তারিখ", "বিবরণ", "খাত", "গ্রুপ", "পরিমাণ", "পেমেন্ট", "মন্তব্য"]],
+            "values": [loc.monthly_headers()],
         })
         # Group VLOOKUP formula in Column D (rows 4..203)
         formula_rows = [
-            [f'=IFERROR(VLOOKUP(C{r}, \'{SETTINGS}\'!$B$2:$C$70, 2, FALSE), "শ্রেণিবিন্যাসহীন")']
+            [f'=IFERROR(VLOOKUP(C{r}, \'{loc.tab_settings}\'!$B$2:$C$70, 2, FALSE), "{loc.vlookup_fallback}")']
             for r in range(4, 204)
         ]
         updates.append({
@@ -317,83 +241,83 @@ def build_bootstrap_values(
             "values": formula_rows,
         })
 
-    # --- 3. 'ধার-দেনা' (Debts Tab) ---
+    # --- 3. Debts Tab ---
     updates.append({
-        "range": f"'{TAB_DEBTS}'!A1",
+        "range": f"'{loc.tab_debts}'!A1",
         "majorDimension": "ROWS",
-        "values": [["ধার-দেনা"]],
+        "values": [[loc.tab_debts]],
     })
     updates.append({
-        "range": f"'{TAB_DEBTS}'!A3:H3",
+        "range": f"'{loc.tab_debts}'!A3:H3",
         "majorDimension": "ROWS",
-        "values": [["তারিখ", "বিবরণ", "ধরণ", "ব্যক্তি", "পরিমাণ", "অবস্থা", "পরিশোধের তারিখ", "মন্তব্য"]],
+        "values": [loc.debt_headers()],
     })
     # Status formula in Column F (rows 4..103)
     debt_formulas = [
-        [f'=IF(ISBLANK(A{r}),"",IF(ISBLANK(G{r}),"চলমান","পরিশোধিত"))']
+        [f'=IF(ISBLANK(A{r}),"",IF(ISBLANK(G{r}),"{loc.debt_status_outstanding}","{loc.debt_status_settled}"))']
         for r in range(4, 104)
     ]
     updates.append({
-        "range": f"'{TAB_DEBTS}'!F4:F103",
+        "range": f"'{loc.tab_debts}'!F4:F103",
         "majorDimension": "ROWS",
         "values": debt_formulas,
     })
 
-    # --- 4. 'বাজেট' (Budget Tab) ---
+    # --- 4. Budget Tab ---
     updates.append({
-        "range": f"'{TAB_BUDGET}'!A1",
+        "range": f"'{loc.tab_budget}'!A1",
         "majorDimension": "ROWS",
-        "values": [["বাজেট"]],
+        "values": [[loc.tab_budget]],
     })
     updates.append({
-        "range": f"'{TAB_BUDGET}'!C2:D2",
+        "range": f"'{loc.tab_budget}'!C2:D2",
         "majorDimension": "ROWS",
-        "values": [["মোট বাজেট:", ""]],
+        "values": [[loc.budget_total_label, ""]],
     })
     updates.append({
-        "range": f"'{TAB_BUDGET}'!A3:B3",
+        "range": f"'{loc.tab_budget}'!A3:B3",
         "majorDimension": "ROWS",
-        "values": [["খাত", "বাজেট সীমা"]],
+        "values": [[loc.h_budget_cat, loc.h_budget_limit]],
     })
 
-    # --- 5. 'পুনরাবৃত্ত খরচ' (Recurring Tab) ---
+    # --- 5. Recurring Tab ---
     updates.append({
-        "range": f"'{TAB_RECURRING}'!A1",
+        "range": f"'{loc.tab_recurring}'!A1",
         "majorDimension": "ROWS",
-        "values": [["পুনরাবৃত্ত খরচ"]],
+        "values": [[loc.tab_recurring]],
     })
     updates.append({
-        "range": f"'{TAB_RECURRING}'!A3:I3",
+        "range": f"'{loc.tab_recurring}'!A3:I3",
         "majorDimension": "ROWS",
-        "values": [["তারিখ", "বিবরণ", "খাত", "গ্রুপ", "পরিমাণ", "পুনরাবৃত্তি", "পরবর্তী তারিখ", "অবস্থা", "মন্তব্য"]],
+        "values": [loc.recurring_headers()],
     })
     recurring_formulas = [
-        [f'=IFERROR(VLOOKUP(C{r}, \'{SETTINGS}\'!$B$2:$C$70, 2, FALSE), "শ্রেণিবিন্যাসহীন")']
+        [f'=IFERROR(VLOOKUP(C{r}, \'{loc.tab_settings}\'!$B$2:$C$70, 2, FALSE), "{loc.vlookup_fallback}")']
         for r in range(4, 104)
     ]
     updates.append({
-        "range": f"'{TAB_RECURRING}'!D4:D103",
+        "range": f"'{loc.tab_recurring}'!D4:D103",
         "majorDimension": "ROWS",
         "values": recurring_formulas,
     })
 
-    # --- 6. 'বার্ষিক সারসংক্ষেপ' (Annual Summary) ---
+    # --- 6. Annual Summary ---
     updates.append({
-        "range": f"'{SUMMARY}'!A1",
+        "range": f"'{loc.tab_summary}'!A1",
         "majorDimension": "ROWS",
-        "values": [[f"বার্ষিক সারসংক্ষেপ  —  {str(year).translate(DIGITS)}"]],
+        "values": [[f"{loc.tab_summary}  —  {loc.year_str(year)}"]],
     })
     updates.append({
-        "range": f"'{SUMMARY}'!A3:B3",
+        "range": f"'{loc.tab_summary}'!A3:B3",
         "majorDimension": "ROWS",
-        "values": [["মাস", "মোট খরচ"]],
+        "values": [[loc.h_sum_month, loc.h_sum_total]],
     })
     summary_rows = [
-        [tab_name(year, m), f"=SUM('{tab_name(year, m)}'!E4:E203)"]
+        [loc.tab_name(year, m), f"=SUM('{loc.tab_name(year, m)}'!E4:E203)"]
         for m in range(1, 13)
     ]
     updates.append({
-        "range": f"'{SUMMARY}'!A4:B15",
+        "range": f"'{loc.tab_summary}'!A4:B15",
         "majorDimension": "ROWS",
         "values": summary_rows,
     })
