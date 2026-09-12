@@ -474,6 +474,31 @@ async def test_uninitialized_sheet_bootstraps_english_template_for_english_user(
     assert "Recurring Expenses" in data["created_tabs"]
 
 
+def test_bootstrap_structural_includes_full_visual_styling():
+    """Verify that build_bootstrap_structural creates requests for titles, headers, widths, and borders."""
+    from app.routers.sheets_bootstrap import build_bootstrap_structural
+    requests, delete_id, created_tabs = build_bootstrap_structural(
+        {"sheets": [{"properties": {"sheetId": 0, "title": "Sheet1"}}]}
+    )
+    assert delete_id == 0
+    assert len(created_tabs) == 17
+    add_sheets = [r["addSheet"] for r in requests if "addSheet" in r]
+    merges = [r["mergeCells"] for r in requests if "mergeCells" in r]
+    repeats = [r["repeatCell"] for r in requests if "repeatCell" in r]
+    dimensions = [r["updateDimensionProperties"] for r in requests if "updateDimensionProperties" in r]
+    borders = [r["updateBorders"] for r in requests if "updateBorders" in r]
+
+    assert len(add_sheets) == 17
+    for s in add_sheets:
+        assert s["properties"]["gridProperties"]["frozenRowCount"] in (1, 3)
+        assert s["properties"]["tabColor"]["red"] == 0.122
+
+    assert len(merges) >= 16
+    assert len(repeats) > 0
+    assert len(dimensions) > 0
+    assert len(borders) >= 16
+
+
 async def test_a_full_month_refuses_rather_than_truncating(api, google):
     client, db, _ = api
     _, _c, _f, http = google
