@@ -18,6 +18,8 @@ const REPORT: MonthlyReport = {
     { iso: "2026-09-04", total: "2000.00" },
     { iso: "2026-09-05", total: "340.50" },
   ],
+  total_income: "0.00",
+  net_savings: "-2340.50",
 };
 
 const realCreate = URL.createObjectURL;

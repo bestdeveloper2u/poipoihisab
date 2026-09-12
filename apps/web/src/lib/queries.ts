@@ -15,14 +15,18 @@ import {
   apiBulkCreateExpenses,
   apiCreateDebt,
   apiCreateExpense,
+  apiCreateIncome,
   apiCreateRecurring,
   apiDeleteDebt,
   apiDeleteExpense,
+  apiDeleteIncome,
   apiDeleteRecurring,
   apiGetBudget,
   apiListCategories,
+  apiListDebtParties,
   apiListDebts,
   apiListExpenses,
+  apiListIncomes,
   apiListRecurring,
   apiMonthlyReport,
   apiPayDebt,
@@ -30,6 +34,7 @@ import {
   apiRunRecurring,
   apiUpdateDebt,
   apiUpdateExpense,
+  apiUpdateIncome,
   apiUpdateRecurring,
   apiVoiceParse,
   apiYearlyReport,
@@ -45,7 +50,12 @@ import {
   type Expense,
   type ExpenseCreateInput,
   type ExpenseUpdateInput,
+  type Income,
+  type IncomeCreateInput,
+  type IncomeListParams,
+  type IncomeUpdateInput,
   type Lang,
+  type PartySummary,
   type RecurringCreateInput,
   type RecurringUpdateInput,
 } from "@poipoihisab/api-client";
@@ -92,7 +102,9 @@ export const qk = {
   expenses: (filters: ExpenseFilters) => ["expenses", "list", filters] as const,
   monthly: (ym: string, lang: Lang) => ["reports", "monthly", ym, lang] as const,
   yearly: (year: number, lang: Lang) => ["reports", "yearly", year, lang] as const,
-  debts: (status: DebtStatus) => ["debts", "list", status] as const,
+  debts: (status: DebtStatus, party?: string) => ["debts", "list", status, party ?? ""] as const,
+  debtParties: ["debts", "parties"] as const,
+  incomes: (filters?: IncomeListParams) => ["incomes", "list", filters] as const,
   budget: (ym: string, lang: Lang) => ["budgets", ym, lang] as const,
   recurring: (filter: RecurringFilter) => ["recurring", "list", filter] as const,
   khataCategories: ["khata", "categories"] as const,
@@ -344,18 +356,27 @@ export function useVoiceParse() {
   });
 }
 
-/** Keyset-paginated debt list for one status tab (`open` by default). */
-export function useDebtsInfinite(status: DebtStatus) {
+/** Keyset-paginated debt list for one status tab (`open` by default), optionally filtered by party. */
+export function useDebtsInfinite(status: DebtStatus, party?: string) {
   const lang = useLangStore((s) => s.lang);
   return useInfiniteQuery({
-    queryKey: qk.debts(status),
+    queryKey: qk.debts(status, party),
     queryFn: ({ pageParam }) =>
-      apiListDebts({ status, limit: 20, cursor: pageParam }, lang),
+      apiListDebts({ status, party, limit: 20, cursor: pageParam }, lang),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => {
       if (!lastPage.ok) return undefined;
       return lastPage.data.next_cursor ?? undefined;
     },
+  });
+}
+
+/** Aggregated debt summaries by party. */
+export function useDebtParties() {
+  const lang = useLangStore((s) => s.lang);
+  return useQuery({
+    queryKey: qk.debtParties,
+    queryFn: () => apiListDebtParties(lang),
   });
 }
 
@@ -553,5 +574,51 @@ export function useRevokeOthersMutation() {
   });
 }
 
+/** Keyset-paginated income list. */
+export function useIncomesInfinite(filters?: IncomeListParams) {
+  const lang = useLangStore((s) => s.lang);
+  const limit = filters?.limit ?? 20;
+  return useInfiniteQuery({
+    queryKey: qk.incomes({ ...filters, limit }),
+    queryFn: ({ pageParam }) =>
+      apiListIncomes(
+        { from: filters?.from, to: filters?.to, limit, cursor: pageParam },
+        lang,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.ok) return undefined;
+      return lastPage.data.next_cursor ?? undefined;
+    },
+  });
+}
+
+/** Income mutations invalidate incomes and reports queries (reports compute net savings & total income). */
+export function useIncomeMutations() {
+  const lang = useLangStore((s) => s.lang);
+  const qc = useQueryClient();
+  const invalidate = async () => {
+    await qc.invalidateQueries({ queryKey: ["incomes"] });
+    await qc.invalidateQueries({ queryKey: ["reports"] });
+  };
+
+  const create = useMutation({
+    mutationFn: (body: IncomeCreateInput) => apiCreateIncome(body, lang),
+    onSuccess: () => void invalidate(),
+  });
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: IncomeUpdateInput }) =>
+      apiUpdateIncome(id, body, lang),
+    onSuccess: () => void invalidate(),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => apiDeleteIncome(id, lang),
+    onSuccess: () => void invalidate(),
+  });
+
+  return { create, update, remove };
+}
+
 /** Utility for optimistic delete flows elsewhere; exported for symmetry. */
-export type { Expense, Debt };
+export type { Expense, Debt, Income, PartySummary };
+

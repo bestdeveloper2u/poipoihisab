@@ -35,6 +35,8 @@ from app.schemas.debt import (
     DebtPayIn,
     DebtPayOut,
     DebtUpdate,
+    PartyListOut,
+    PartySummaryOut,
 )
 
 router = APIRouter(prefix="/debts", tags=["debts"])
@@ -106,6 +108,7 @@ async def list_debts(
     debt_status: Annotated[
         Literal["open", "settled", "all"], Query(alias="status")
     ] = "open",
+    party: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: Annotated[str | None, Query()] = None,
 ) -> DebtListOut:
@@ -113,20 +116,17 @@ async def list_debts(
 
     ``?status=open`` (default) keeps rows with ``settled_at IS NULL``;
     ``settled`` the complement; ``all`` both.
+    ``?party=...`` filters to a specific person/party.
     """
     stmt = select(Debt).where(Debt.user_id == user.id)
+    if party is not None and party.strip():
+        stmt = stmt.where(Debt.party == party.strip())
     if debt_status == "open":
         stmt = stmt.where(Debt.settled_at.is_(None))
     elif debt_status == "settled":
         stmt = stmt.where(Debt.settled_at.is_not(None))
     if cursor is not None:
         cursor_id = _decode_cursor(cursor)
-        # Keyset predicate for ORDER BY (iso DESC, created_at DESC, id DESC).
-        # The anchor triple is read back from the cursor row itself (scalar
-        # subqueries): comparing DB values to DB values sidesteps the dialect
-        # datetime-format mismatch (SQLite CURRENT_TIMESTAMP stores no
-        # fractional seconds while bound datetime params render ".000000",
-        # which breaks literal equality and duplicates rows at page edges).
         anchor_iso = select(Debt.iso).where(Debt.id == cursor_id).scalar_subquery()
         anchor_ts = (
             select(Debt.created_at).where(Debt.id == cursor_id).scalar_subquery()
@@ -154,6 +154,49 @@ async def list_debts(
         items=[DebtOut.model_validate(row) for row in rows],
         next_cursor=next_cursor,
     )
+
+
+@router.get("/parties", response_model=PartyListOut)
+async def list_debt_parties(db: DbDep, user: CurrentUser) -> PartyListOut:
+    """List all distinct parties with aggregate KPIs and net balances."""
+    stmt = select(Debt).where(Debt.user_id == user.id).order_by(Debt.iso.desc(), Debt.created_at.desc())
+    rows = (await db.scalars(stmt)).all()
+
+    party_data: dict[str, dict[str, object]] = {}
+    for d in rows:
+        p = d.party
+        if p not in party_data:
+            party_data[p] = {
+                "party": p,
+                "total_lent": Decimal(0),
+                "total_borrowed": Decimal(0),
+                "open_count": 0,
+                "total_count": 0,
+                "last_iso": d.iso,
+            }
+        entry = party_data[p]
+        entry["total_count"] = int(entry["total_count"]) + 1
+        if d.settled_at is None:
+            entry["open_count"] = int(entry["open_count"]) + 1
+            if d.dir == "lend":
+                entry["total_lent"] = Decimal(entry["total_lent"]) + d.amt
+            elif d.dir == "borrow":
+                entry["total_borrowed"] = Decimal(entry["total_borrowed"]) + d.amt
+
+    items = [
+        PartySummaryOut(
+            party=p,
+            total_lent=str(Decimal(val["total_lent"]).quantize(Decimal("0.01"))),
+            total_borrowed=str(Decimal(val["total_borrowed"]).quantize(Decimal("0.01"))),
+            net_balance=str((Decimal(val["total_lent"]) - Decimal(val["total_borrowed"])).quantize(Decimal("0.01"))),
+            open_count=int(val["open_count"]),
+            total_count=int(val["total_count"]),
+            last_iso=val["last_iso"],
+        )
+        for p, val in party_data.items()
+    ]
+    return PartyListOut(items=items)
+
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=DebtOut)

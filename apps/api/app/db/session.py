@@ -80,6 +80,10 @@ async def ensure_schema_ready(engine: AsyncEngine) -> None:
             from app.models.audit import AdminAuditLog
 
             AdminAuditLog.__table__.create(sync_conn, checkfirst=True)
+        if not insp.has_table("incomes"):
+            from app.models.income import Income
+
+            Income.__table__.create(sync_conn, checkfirst=True)
 
     try:
         async with engine.begin() as conn:

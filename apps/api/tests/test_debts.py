@@ -271,3 +271,38 @@ async def test_delete_204(client: AsyncClient) -> None:
     # Gone from the list, and a second delete 404s.
     assert (await client.get(DEBTS, headers=headers)).json()["items"] == []
     assert (await client.delete(f"{DEBTS}/{debt['id']}", headers=headers)).status_code == 404
+
+
+async def test_party_filter_and_parties_aggregation(client: AsyncClient) -> None:
+    headers, _ = await register_user(client, email="debt-party@test.dev")
+    # Party A: 2 debts (lend 2000, borrow 500)
+    await _create(client, headers, party="হাসান", dir="lend", amt="2000.00")
+    await _create(client, headers, party="হাসান", dir="borrow", amt="500.00")
+    # Party B: 1 debt (borrow 1000)
+    await _create(client, headers, party="করিম", dir="borrow", amt="1000.00")
+
+    # Filter by party
+    r_hasan = await client.get(f"{DEBTS}?party=হাসান", headers=headers)
+    assert r_hasan.status_code == 200
+    items = r_hasan.json()["items"]
+    assert len(items) == 2
+    assert all(i["party"] == "হাসান" for i in items)
+
+    # List parties aggregation
+    r_parties = await client.get(f"{DEBTS}/parties", headers=headers)
+    assert r_parties.status_code == 200
+    p_items = r_parties.json()["items"]
+    assert len(p_items) == 2
+    by_name = {p["party"]: p for p in p_items}
+    assert "হাসান" in by_name
+    assert by_name["হাসান"]["total_lent"] == "2000.00"
+    assert by_name["হাসান"]["total_borrowed"] == "500.00"
+    assert by_name["হাসান"]["net_balance"] == "1500.00"
+    assert by_name["হাসান"]["open_count"] == 2
+    assert by_name["হাসান"]["total_count"] == 2
+
+    assert "করিম" in by_name
+    assert by_name["করিম"]["total_lent"] == "0.00"
+    assert by_name["করিম"]["total_borrowed"] == "1000.00"
+    assert by_name["করিম"]["net_balance"] == "-1000.00"
+

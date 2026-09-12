@@ -89,6 +89,37 @@ export interface BudgetPut {
   cats?: Record<string, number>;
 }
 
+export type IncomeSource = "salary" | "freelance" | "business" | "investment" | "gift" | "other";
+
+export interface Income {
+  id: string;
+  user_id: string;
+  source: IncomeSource;
+  amt: Money;
+  pay: PayMethod;
+  description: string | null;
+  iso: string;
+  created_at: string;
+}
+
+export interface IncomeCreate {
+  source: IncomeSource;
+  amt: Money;
+  pay?: PayMethod;
+  description?: string | null;
+  iso?: string;
+}
+
+export interface PartySummary {
+  party: string;
+  total_lent: Money;
+  total_borrowed: Money;
+  net_balance: Money;
+  open_count: number;
+  total_count: number;
+  last_iso: string;
+}
+
 export interface Healthz {
   status: "ok";
   version: string;

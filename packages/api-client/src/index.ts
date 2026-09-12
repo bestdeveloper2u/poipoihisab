@@ -419,6 +419,7 @@ export type DebtPayResult = components["schemas"]["DebtPayOut"];
 
 export interface DebtListParams {
   status?: DebtStatus;
+  party?: string;
   limit?: number;
   cursor?: string | null;
 }
@@ -482,6 +483,82 @@ export async function apiPayDebt(
     body: { amt },
   });
   if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+export type PartySummary = components["schemas"]["PartySummaryOut"];
+export type PartyList = components["schemas"]["PartyListOut"];
+
+/** Aggregated per-party summaries (receivable / payable / net balance). */
+export async function apiListDebtParties(
+  lang: Lang = "bn",
+): Promise<ApiResult<PartyList>> {
+  const { data, error, response } = await api.GET("/api/v1/debts/parties", {});
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/* ------------------------------------------------------------------ */
+/* Incomes (TallyKhata-inspired — party ledger & income tracking)      */
+/* ------------------------------------------------------------------ */
+
+export type Income = components["schemas"]["IncomeOut"];
+export type IncomePage = components["schemas"]["IncomeListOut"];
+export type IncomeCreateInput = components["schemas"]["IncomeIn"];
+export type IncomeUpdateInput = components["schemas"]["IncomeUpdate"];
+
+export interface IncomeListParams {
+  from?: string;
+  to?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+/** Keyset-paginated income list, newest first. */
+export async function apiListIncomes(
+  params: IncomeListParams,
+  lang: Lang = "bn",
+): Promise<ApiResult<IncomePage>> {
+  const { data, error, response } = await api.GET("/api/v1/incomes", {
+    params: { query: params as Record<string, string | number | undefined> },
+  });
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Record one income entry. */
+export async function apiCreateIncome(
+  body: IncomeCreateInput,
+  lang: Lang = "bn",
+): Promise<ApiResult<Income>> {
+  const { data, error, response } = await api.POST("/api/v1/incomes", { body });
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Update an income entry (partial). */
+export async function apiUpdateIncome(
+  incomeId: string,
+  body: IncomeUpdateInput,
+  lang: Lang = "bn",
+): Promise<ApiResult<Income>> {
+  const { data, error, response } = await api.PATCH("/api/v1/incomes/{income_id}", {
+    params: { path: { income_id: incomeId } },
+    body,
+  });
+  if (data) return { ok: true, data };
+  return { ok: false, status: response.status, detail: errorMessage(error, lang) };
+}
+
+/** Delete an income entry. */
+export async function apiDeleteIncome(
+  incomeId: string,
+  lang: Lang = "bn",
+): Promise<ApiResult<null>> {
+  const { error, response } = await api.DELETE("/api/v1/incomes/{income_id}", {
+    params: { path: { income_id: incomeId } },
+  });
+  if (response.ok) return { ok: true, data: null };
   return { ok: false, status: response.status, detail: errorMessage(error, lang) };
 }
 

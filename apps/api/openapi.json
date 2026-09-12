@@ -2168,6 +2168,211 @@
         "title": "Healthz",
         "type": "object"
       },
+      "IncomeIn": {
+        "description": "POST /incomes request body.",
+        "properties": {
+          "amt": {
+            "examples": [
+              "890.00"
+            ],
+            "pattern": "^\\d{1,10}\\.\\d{2}$",
+            "title": "Amt",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "iso": {
+            "format": "date",
+            "title": "Iso",
+            "type": "string"
+          },
+          "pay": {
+            "default": "cash",
+            "maxLength": 32,
+            "title": "Pay",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "amt",
+          "iso"
+        ],
+        "title": "IncomeIn",
+        "type": "object"
+      },
+      "IncomeListOut": {
+        "description": "Envelope for GET /incomes with cursor pagination.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IncomeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "IncomeListOut",
+        "type": "object"
+      },
+      "IncomeOut": {
+        "description": "Public income row.",
+        "properties": {
+          "amt": {
+            "title": "Amt",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "iso": {
+            "format": "date",
+            "title": "Iso",
+            "type": "string"
+          },
+          "pay": {
+            "title": "Pay",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "source",
+          "amt",
+          "pay",
+          "iso",
+          "created_at"
+        ],
+        "title": "IncomeOut",
+        "type": "object"
+      },
+      "IncomeUpdate": {
+        "description": "PATCH /incomes/{id} request body \u2014 all fields optional.",
+        "properties": {
+          "amt": {
+            "anyOf": [
+              {
+                "examples": [
+                  "890.00"
+                ],
+                "pattern": "^\\d{1,10}\\.\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amt"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "iso": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iso"
+          },
+          "pay": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pay"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "title": "IncomeUpdate",
+        "type": "object"
+      },
       "KhataListOut": {
         "description": "Envelope for GET /expenses/categories (ADR-0004 \u00a78; cursor always null).",
         "properties": {
@@ -2281,8 +2486,18 @@
             "title": "Count",
             "type": "integer"
           },
+          "net_savings": {
+            "default": "0.00",
+            "title": "Net Savings",
+            "type": "string"
+          },
           "total": {
             "title": "Total",
+            "type": "string"
+          },
+          "total_income": {
+            "default": "0.00",
+            "title": "Total Income",
             "type": "string"
           },
           "ym": {
@@ -2374,6 +2589,68 @@
           "amt"
         ],
         "title": "ParsedItem",
+        "type": "object"
+      },
+      "PartyListOut": {
+        "description": "Envelope for GET /debts/parties.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PartySummaryOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PartyListOut",
+        "type": "object"
+      },
+      "PartySummaryOut": {
+        "description": "Aggregate KPI and ledger status for one party.",
+        "properties": {
+          "last_iso": {
+            "format": "date",
+            "title": "Last Iso",
+            "type": "string"
+          },
+          "net_balance": {
+            "title": "Net Balance",
+            "type": "string"
+          },
+          "open_count": {
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "total_borrowed": {
+            "title": "Total Borrowed",
+            "type": "string"
+          },
+          "total_count": {
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "total_lent": {
+            "title": "Total Lent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party",
+          "total_lent",
+          "total_borrowed",
+          "net_balance",
+          "open_count",
+          "total_count",
+          "last_iso"
+        ],
+        "title": "PartySummaryOut",
         "type": "object"
       },
       "RecurringIn": {
@@ -3189,8 +3466,18 @@
             "title": "Count",
             "type": "integer"
           },
+          "net_savings": {
+            "default": "0.00",
+            "title": "Net Savings",
+            "type": "string"
+          },
           "total": {
             "title": "Total",
+            "type": "string"
+          },
+          "total_income": {
+            "default": "0.00",
+            "title": "Total Income",
             "type": "string"
           },
           "year": {
@@ -4630,7 +4917,7 @@
     },
     "/api/v1/debts": {
       "get": {
-        "description": "List the caller's debts, newest first, keyset-paginated.\n\n``?status=open`` (default) keeps rows with ``settled_at IS NULL``;\n``settled`` the complement; ``all`` both.",
+        "description": "List the caller's debts, newest first, keyset-paginated.\n\n``?status=open`` (default) keeps rows with ``settled_at IS NULL``;\n``settled`` the complement; ``all`` both.\n``?party=...`` filters to a specific person/party.",
         "operationId": "list_debts_api_v1_debts_get",
         "parameters": [
           {
@@ -4646,6 +4933,22 @@
               ],
               "title": "Status",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "party",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Party"
             }
           },
           {
@@ -4750,6 +5053,33 @@
           }
         ],
         "summary": "Create Debt",
+        "tags": [
+          "debts"
+        ]
+      }
+    },
+    "/api/v1/debts/parties": {
+      "get": {
+        "description": "List all distinct parties with aggregate KPIs and net balances.",
+        "operationId": "list_debt_parties_api_v1_debts_parties_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Debt Parties",
         "tags": [
           "debts"
         ]
@@ -5488,6 +5818,251 @@
         "summary": "Import Restore",
         "tags": [
           "import"
+        ]
+      }
+    },
+    "/api/v1/incomes": {
+      "get": {
+        "description": "List caller's incomes, newest first, keyset-paginated.",
+        "operationId": "list_incomes_api_v1_incomes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Incomes",
+        "tags": [
+          "incomes"
+        ]
+      },
+      "post": {
+        "description": "Record a new income entry.",
+        "operationId": "create_income_api_v1_incomes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncomeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Income",
+        "tags": [
+          "incomes"
+        ]
+      }
+    },
+    "/api/v1/incomes/{income_id}": {
+      "delete": {
+        "description": "Delete an income entry.",
+        "operationId": "delete_income_api_v1_incomes__income_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "income_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Income Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Income",
+        "tags": [
+          "incomes"
+        ]
+      },
+      "patch": {
+        "description": "Update an income entry.",
+        "operationId": "update_income_api_v1_incomes__income_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "income_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Income Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncomeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Income",
+        "tags": [
+          "incomes"
         ]
       }
     },

@@ -19,6 +19,7 @@ import {
   IconRepeat,
   IconSliders,
   IconSwap,
+  IconTrendingUp,
   IconWallet,
 } from "./icons";
 
@@ -53,6 +54,7 @@ const NAV_LIST = [
 ];
 const NAV_MORE = [
   { to: "/budget", end: false, Icon: IconWallet, label: (l: Lang) => t(l, "navBudget") },
+  { to: "/income", end: false, Icon: IconTrendingUp, label: (l: Lang) => w(l, "incTitle") },
   { to: "/debts", end: false, Icon: IconSwap, label: (l: Lang) => t(l, "navDebts") },
   { to: "/recurring", end: false, Icon: IconRepeat, label: (l: Lang) => w(l, "navRecurring") },
   { to: "/settings", end: false, Icon: IconSliders, label: (l: Lang) => t(l, "navSettings") },

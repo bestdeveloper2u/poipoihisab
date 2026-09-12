@@ -32,6 +32,7 @@ from app.routers import (
     expenses,
     export,
     health,
+    incomes,
     recurring,
     reports,
     sheets,
@@ -88,7 +89,9 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
     app.include_router(expenses.router, prefix="/api/v1")
+    app.include_router(incomes.router, prefix="/api/v1")
     app.include_router(debts.router, prefix="/api/v1")
+
     app.include_router(budgets.router, prefix="/api/v1")
     app.include_router(voice.router, prefix="/api/v1")
     app.include_router(reports.router, prefix="/api/v1")

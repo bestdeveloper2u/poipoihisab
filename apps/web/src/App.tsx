@@ -26,6 +26,9 @@ const Debts = lazy(() =>
 const Expenses = lazy(() =>
   import("./screens/Expenses").then((m) => ({ default: m.Expenses })),
 );
+const Income = lazy(() =>
+  import("./screens/Income").then((m) => ({ default: m.Income })),
+);
 const Login = lazy(() =>
   import("./screens/Login").then((m) => ({ default: m.Login })),
 );
@@ -189,6 +192,7 @@ export default function App() {
                   simply absent from the admin navigation. */}
               <Route path="/" element={<HomeRoute />} />
               <Route path="/expenses" element={<Expenses />} />
+              <Route path="/income" element={<Income />} />
               <Route path="/month" element={<Month />} />
               <Route path="/report" element={<Report />} />
               <Route path="/debts" element={<Debts />} />

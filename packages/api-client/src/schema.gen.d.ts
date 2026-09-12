@@ -705,6 +705,7 @@ export interface paths {
          *
          *     ``?status=open`` (default) keeps rows with ``settled_at IS NULL``;
          *     ``settled`` the complement; ``all`` both.
+         *     ``?party=...`` filters to a specific person/party.
          */
         get: operations["list_debts_api_v1_debts_get"];
         put?: never;
@@ -713,6 +714,26 @@ export interface paths {
          * @description Record one debt (201 with the stored row; ``iso`` defaults to today).
          */
         post: operations["create_debt_api_v1_debts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debts/parties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Debt Parties
+         * @description List all distinct parties with aggregate KPIs and net balances.
+         */
+        get: operations["list_debt_parties_api_v1_debts_parties_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -982,6 +1003,54 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Incomes
+         * @description List caller's incomes, newest first, keyset-paginated.
+         */
+        get: operations["list_incomes_api_v1_incomes_get"];
+        put?: never;
+        /**
+         * Create Income
+         * @description Record a new income entry.
+         */
+        post: operations["create_income_api_v1_incomes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/incomes/{income_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Income
+         * @description Delete an income entry.
+         */
+        delete: operations["delete_income_api_v1_incomes__income_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Income
+         * @description Update an income entry.
+         */
+        patch: operations["update_income_api_v1_incomes__income_id__patch"];
         trace?: never;
     };
     "/api/v1/recurring": {
@@ -2112,6 +2181,82 @@ export interface components {
             version: string;
         };
         /**
+         * IncomeIn
+         * @description POST /incomes request body.
+         */
+        IncomeIn: {
+            /**
+             * Amt
+             * @example 890.00
+             */
+            amt: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Iso
+             * Format: date
+             */
+            iso: string;
+            /**
+             * Pay
+             * @default cash
+             */
+            pay: string;
+            /** Source */
+            source: string;
+        };
+        /**
+         * IncomeListOut
+         * @description Envelope for GET /incomes with cursor pagination.
+         */
+        IncomeListOut: {
+            /** Items */
+            items: components["schemas"]["IncomeOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /**
+         * IncomeOut
+         * @description Public income row.
+         */
+        IncomeOut: {
+            /** Amt */
+            amt: string;
+            /** Created At */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Iso
+             * Format: date
+             */
+            iso: string;
+            /** Pay */
+            pay: string;
+            /** Source */
+            source: string;
+            /** User Id */
+            user_id: string;
+        };
+        /**
+         * IncomeUpdate
+         * @description PATCH /incomes/{id} request body — all fields optional.
+         */
+        IncomeUpdate: {
+            /** Amt */
+            amt?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Iso */
+            iso?: string | null;
+            /** Pay */
+            pay?: string | null;
+            /** Source */
+            source?: string | null;
+        };
+        /**
          * KhataListOut
          * @description Envelope for GET /expenses/categories (ADR-0004 §8; cursor always null).
          */
@@ -2165,8 +2310,18 @@ export interface components {
             };
             /** Count */
             count: number;
+            /**
+             * Net Savings
+             * @default 0.00
+             */
+            net_savings: string;
             /** Total */
             total: string;
+            /**
+             * Total Income
+             * @default 0.00
+             */
+            total_income: string;
             /** Ym */
             ym: string;
         };
@@ -2190,6 +2345,37 @@ export interface components {
             iso?: string | null;
             /** Pay */
             pay?: ("cash" | "bkash" | "nagad" | "rocket" | "card" | "bank") | null;
+        };
+        /**
+         * PartyListOut
+         * @description Envelope for GET /debts/parties.
+         */
+        PartyListOut: {
+            /** Items */
+            items: components["schemas"]["PartySummaryOut"][];
+        };
+        /**
+         * PartySummaryOut
+         * @description Aggregate KPI and ledger status for one party.
+         */
+        PartySummaryOut: {
+            /**
+             * Last Iso
+             * Format: date
+             */
+            last_iso: string;
+            /** Net Balance */
+            net_balance: string;
+            /** Open Count */
+            open_count: number;
+            /** Party */
+            party: string;
+            /** Total Borrowed */
+            total_borrowed: string;
+            /** Total Count */
+            total_count: number;
+            /** Total Lent */
+            total_lent: string;
         };
         /**
          * RecurringIn
@@ -2533,8 +2719,18 @@ export interface components {
             by_month: components["schemas"]["ReportByMonth"][];
             /** Count */
             count: number;
+            /**
+             * Net Savings
+             * @default 0.00
+             */
+            net_savings: string;
             /** Total */
             total: string;
+            /**
+             * Total Income
+             * @default 0.00
+             */
+            total_income: string;
             /** Year */
             year: number;
         };
@@ -3453,6 +3649,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "open" | "settled" | "all";
+                party?: string | null;
                 limit?: number;
                 cursor?: string | null;
             };
@@ -3511,6 +3708,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_debt_parties_api_v1_debts_parties_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartyListOut"];
                 };
             };
         };
@@ -3946,6 +4163,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RestoreOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_incomes_api_v1_incomes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomeListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_income_api_v1_incomes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncomeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_income_api_v1_incomes__income_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                income_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_income_api_v1_incomes__income_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                income_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncomeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomeOut"];
                 };
             };
             /** @description Validation Error */

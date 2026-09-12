@@ -39,6 +39,8 @@ async def test_monthly_report_payload_and_cache(client: AsyncClient, kv: object)
             {"iso": "2026-09-01", "total": "100.00"},
             {"iso": "2026-09-03", "total": "40.50"},
         ],
+        "total_income": "0.00",
+        "net_savings": "-140.50",
     }
 
     # Second call: identical payload (served from cache), key present in KV.
@@ -128,6 +130,8 @@ async def test_write_invalidates_monthly_cache(client: AsyncClient, kv: object) 
         "count": 1,
         "by_group": {"food": "25.50"},
         "by_day": [{"iso": "2026-09-05", "total": "25.50"}],
+        "total_income": "0.00",
+        "net_savings": "-25.50",
     }
 
 
@@ -191,6 +195,8 @@ async def test_report_defaults_and_empty_month(client: AsyncClient) -> None:
         "count": 0,
         "by_group": {},
         "by_day": [],
+        "total_income": "0.00",
+        "net_savings": "0.00",
     }
 
 
@@ -220,6 +226,8 @@ async def test_reports_are_per_user(client: AsyncClient, kv: object) -> None:
         "count": 0,
         "by_group": {},
         "by_day": [],
+        "total_income": "0.00",
+        "net_savings": "0.00",
     }
     # B's cache key is only populated by B's own (zero) aggregate.
     cached = await kv.get(f"rep:monthly:{uid_b}:2026-09")  # type: ignore[attr-defined]

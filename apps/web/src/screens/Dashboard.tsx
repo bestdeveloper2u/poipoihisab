@@ -236,6 +236,46 @@ export function Dashboard() {
             />
           </div>
 
+          {/* Income & Savings row */}
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+            <div
+              onClick={() => navigate("/income")}
+              className="glass-card cursor-pointer rounded-card px-4 py-3.5 hover:bg-surface-2 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted">{W[lang].statIncome}</p>
+                <span className="text-[10px] text-emerald font-bold">↗</span>
+              </div>
+              <p
+                className={`mt-0.5 text-xl font-extrabold tabular-nums text-emerald ${
+                  lang === "bn" ? "font-bn" : "font-en"
+                }`}
+              >
+                {fmtTaka(report.total_income, lang)}
+              </p>
+            </div>
+
+            <div
+              onClick={() => navigate("/income")}
+              className="glass-card cursor-pointer rounded-card px-4 py-3.5 hover:bg-surface-2 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted">{W[lang].statNetSavings}</p>
+                <span className={`text-[10px] font-bold ${num(report.net_savings) >= 0 ? "text-emerald" : "text-danger"}`}>
+                  {num(report.net_savings) >= 0 ? W[lang].netPositive : W[lang].netNegative}
+                </span>
+              </div>
+              <p
+                className={`mt-0.5 text-xl font-extrabold tabular-nums ${
+                  num(report.net_savings) >= 0 ? "text-emerald" : "text-danger"
+                } ${lang === "bn" ? "font-bn" : "font-en"}`}
+              >
+                {num(report.net_savings) >= 0 ? "+" : ""}
+                {fmtTaka(report.net_savings, lang)}
+              </p>
+            </div>
+          </div>
+
           {/* T22.2: prototype emptyCta — nudge when today has no expenses */}
           {todayEmpty && (
             <div className="glass-card mt-3 flex flex-col items-start gap-3 rounded-card p-[18px]">

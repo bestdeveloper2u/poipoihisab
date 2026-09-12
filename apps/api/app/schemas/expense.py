@@ -194,6 +194,8 @@ class MonthlyReportOut(BaseModel):
     count: int
     by_group: dict[str, str]
     by_day: list[ReportByDay]
+    total_income: str = "0.00"
+    net_savings: str = "0.00"
 
 
 class YearlyReportOut(BaseModel):
@@ -202,3 +204,6 @@ class YearlyReportOut(BaseModel):
     count: int
     by_group: dict[str, str]
     by_month: list[ReportByMonth]
+    total_income: str = "0.00"
+    net_savings: str = "0.00"
+

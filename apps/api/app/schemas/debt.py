@@ -89,3 +89,22 @@ class DebtPayOut(BaseModel):
 
     status: Literal["FULL", "PARTIAL"]
     debt: DebtOut
+
+
+class PartySummaryOut(BaseModel):
+    """Aggregate KPI and ledger status for one party."""
+
+    party: str
+    total_lent: MoneyStr
+    total_borrowed: MoneyStr
+    net_balance: MoneyStr
+    open_count: int
+    total_count: int
+    last_iso: date
+
+
+class PartyListOut(BaseModel):
+    """Envelope for GET /debts/parties."""
+
+    items: list[PartySummaryOut]
+

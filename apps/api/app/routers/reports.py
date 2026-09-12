@@ -25,6 +25,7 @@ from app.core.deps import get_current_user, get_kv_dep
 from app.core.kv import KV
 from app.db.session import get_db
 from app.models.expense import Expense
+from app.models.income import Income
 from app.models.profile import Profile
 from app.schemas.expense import (
     MonthlyReportOut,
@@ -103,6 +104,19 @@ async def _expense_rows(
     return [(row[0], row[1], row[2]) for row in rows.all()]
 
 
+async def _income_total(
+    db: AsyncSession, user_id: str, start: date, end: date
+) -> Decimal:
+    rows = await db.execute(
+        select(Income.amt).where(
+            Income.user_id == uuid.UUID(user_id),
+            Income.iso >= start,
+            Income.iso <= end,
+        )
+    )
+    return sum((row[0] for row in rows.all()), _ZERO)
+
+
 async def _monthly_payload(
     db: AsyncSession, user_id: str, ym: str, start: date, end: date
 ) -> dict[str, object]:
@@ -114,6 +128,8 @@ async def _monthly_payload(
         count += 1
         by_group[grp] = by_group.get(grp, _ZERO) + amt
         by_day[iso] = by_day.get(iso, _ZERO) + amt
+    income_total = await _income_total(db, user_id, start, end)
+    net_savings = income_total - total
     return {
         "ym": ym,
         "total": _money(total),
@@ -123,6 +139,8 @@ async def _monthly_payload(
             {"iso": day.isoformat(), "total": _money(sum_)}
             for day, sum_ in sorted(by_day.items())
         ],
+        "total_income": _money(income_total),
+        "net_savings": _money(net_savings),
     }
 
 
@@ -139,6 +157,10 @@ async def _yearly_payload(
         count += 1
         by_group[grp] = by_group.get(grp, _ZERO) + amt
         by_month[iso.month] = by_month.get(iso.month, _ZERO) + amt
+    income_total = await _income_total(
+        db, user_id, date(year, 1, 1), date(year, 12, 31)
+    )
+    net_savings = income_total - total
     return {
         "year": year,
         "total": _money(total),
@@ -148,7 +170,10 @@ async def _yearly_payload(
             {"ym": f"{year:04d}-{month:02d}", "total": _money(by_month.get(month, _ZERO))}
             for month in range(1, 13)
         ],
+        "total_income": _money(income_total),
+        "net_savings": _money(net_savings),
     }
+
 
 
 @router.get("/monthly", response_model=MonthlyReportOut)

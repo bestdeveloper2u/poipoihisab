@@ -51,3 +51,16 @@ def recurring_body(**overrides: object) -> dict[str, object]:
     }
     body.update(overrides)
     return body
+
+
+def income_body(**overrides: object) -> dict[str, object]:
+    """Minimal valid POST /incomes payload with overrides applied."""
+    body: dict[str, object] = {
+        "source": "বেতন",
+        "amt": "50000.00",
+        "pay": "bank",
+        "iso": "2026-09-01",
+    }
+    body.update(overrides)
+    return body
+
