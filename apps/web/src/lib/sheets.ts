@@ -20,6 +20,7 @@ export interface SheetsExport {
   budget_categories: number;
   recurring: number;
   skipped_tabs: string[];
+  created_tabs?: string[];
 }
 
 export function useSheetsStatus() {
@@ -52,6 +53,9 @@ export async function exportSheets(sheet: string, month: string | null): Promise
 export function syncReport(lang: Lang, data: SheetsExport): string {
   const count = (value: number) => (lang === "bn" ? toBnDigits(String(value)) : String(value));
   const said = [w(lang, "sheetsExported").replace("{n}", count(data.rows))];
+  if (data.created_tabs && data.created_tabs.length > 0) {
+    said.unshift(lang === "bn" ? "স্প্রেডশিট প্রস্তুত করা হয়েছে" : "Spreadsheet initialized");
+  }
   // All three skipped means an older copy of the template: the counts would
   // read zero and say nothing true about what the app actually holds.
   if (data.skipped_tabs.length < 3) {

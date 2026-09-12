@@ -95,6 +95,11 @@ from app.models.budget import Budget
 from app.models.debt import Debt
 from app.models.recurring import RecurringExpense
 from app.routers.export import CurrentUser, DbDep, _csv_bytes, _money
+from app.routers.sheets_bootstrap import (
+    build_bootstrap_structural,
+    build_bootstrap_values,
+    is_uninitialized_spreadsheet,
+)
 from app.routers.sheets_years import SUMMARY, TemplateError, plan_years
 
 # google-auth is imported lazily (first Sheets use) — keeps serverless cold
@@ -653,6 +658,32 @@ async def export_sheets(
                 ]
             )
 
+    # If the spreadsheet is uninitialized (e.g. fresh blank sheet with Sheet1),
+    # automatically provision the complete template so the sync can proceed.
+    bootstrapped_tabs: list[str] = []
+    if is_uninitialized_spreadsheet(list(titles)):
+        struct_reqs, _, bootstrapped_tabs = build_bootstrap_structural(metadata, year=2026)
+        if struct_reqs:
+            await run_in_threadpool(
+                _google, "POST", base + ":batchUpdate", token,
+                json={"requests": struct_reqs},
+            )
+        user_cats = {row[2].lstrip("'") for rows in by_month.values() for row in rows}
+        values_data = build_bootstrap_values(user_cats, year=2026)
+        if values_data:
+            await run_in_threadpool(
+                _google, "POST", base + "/values:batchUpdate", token,
+                json={"valueInputOption": "USER_ENTERED", "data": values_data},
+            )
+        metadata = await run_in_threadpool(
+            _google, "GET", base, token,
+            params={"fields": "sheets(properties,charts),namedRanges"},
+        )
+        try:
+            titles = {sheet["properties"]["title"] for sheet in metadata.get("sheets", [])}
+        except (TypeError, KeyError, AttributeError):
+            raise _upstream() from None
+
     # Refuse the whole sync before writing anything: a partial write would
     # leave some months replaced and others stale, which is harder to notice
     # and harder to undo than a refusal.
@@ -813,7 +844,7 @@ async def export_sheets(
         debts=len(debts),
         budget_categories=len(budget),
         recurring=len(recurring),
-        created_tabs=created_tabs,
+        created_tabs=bootstrapped_tabs + created_tabs,
         skipped_tabs=[
             tab
             for tab in (_TAB_DEBTS, _TAB_BUDGET, _TAB_RECURRING)

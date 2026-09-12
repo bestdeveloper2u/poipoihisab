@@ -381,16 +381,54 @@ async def test_syncing_everything_splits_rows_across_month_tabs(api, google):
 
 
 async def test_missing_month_tab_refuses_before_writing(api, google):
-    """A tab this code fabricated would have no formulas and total nothing."""
+    """An incomplete custom workbook refuses before writing."""
     client, db, _ = api
     _, _c, _f, http = google
     row = (date(2026, 9, 1), None, "food", "চা", Decimal("5.00"), "cash", uuid.uuid4())
     db.execute.side_effect = [SimpleNamespace(all=lambda: [row]), SimpleNamespace(all=list)]
-    http.side_effect = responses(sheet_meta("Sheet1"))
+    http.side_effect = responses(sheet_meta("CustomTab"))
     response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
     error(response, 409, "sheets_missing_month_tab")
     assert SEPT in response.json()["detail"]["message_bn"]
     assert len(http.call_args_list) == 1  # metadata only; nothing written
+
+
+async def test_uninitialized_sheet_bootstraps_full_template_and_syncs(api, google):
+    """A blank spreadsheet (Sheet1) is automatically bootstrapped with the 2026 template."""
+    client, db, _ = api
+    _, _c, _f, http = google
+    row = (date(2026, 9, 1), None, "food", "চা", Decimal("5.00"), "cash", uuid.uuid4())
+    db.execute.side_effect = [
+        page(row),
+        page(),
+        page(),
+        page(),
+        single(None),
+    ]
+    from app.routers.sheets_bootstrap import (
+        BN_MONTHS,
+        SETTINGS,
+        SUMMARY,
+        TAB_BUDGET,
+        TAB_DEBTS,
+        TAB_RECURRING,
+    )
+    all_months = [f"{m} ২০২৬" for m in BN_MONTHS]
+    created = [SUMMARY, TAB_RECURRING, TAB_DEBTS, TAB_BUDGET, SETTINGS, *all_months]
+    http.side_effect = responses(
+        {"sheets": [{"properties": {"title": "Sheet1", "sheetId": 0}}]},
+        {},
+        {},
+        sheet_meta(*created),
+        {"values": [["চা", "ডাল"]]},
+        {},
+    )
+    response = await client.post(URL, json={"sheet_id": SHEET_ID, "month": "2026-09"})
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["rows"] == 1
+    assert SEPT in data["months"]
+    assert len(data["created_tabs"]) > 0
 
 
 async def test_a_full_month_refuses_rather_than_truncating(api, google):

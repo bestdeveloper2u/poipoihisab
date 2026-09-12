@@ -8,6 +8,7 @@ import {
   loadSheetRef,
   saveSheetRef,
   sheetRef,
+  syncReport,
 } from "../src/lib/sheets";
 
 const id = "1AbCdEfGhIjKlMnOpQrStUvWxYz_0123456789-abcd";
@@ -81,5 +82,47 @@ describe("saved sheet reference", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
     expect(loadSheetRef()).toBe("");
     expect(saveSheetRef(id)).toBe(false);
+  });
+});
+
+describe("syncReport", () => {
+  it("formats expense rows and ledger counts", () => {
+    const report = syncReport("bn", {
+      rows: 5,
+      months: ["সেপ্টেম্বর ২০২৬"],
+      unmapped: [],
+      debts: 2,
+      budget_categories: 3,
+      recurring: 1,
+      skipped_tabs: [],
+    });
+    expect(report).toContain("✓ ৫ সারি এক্সপোর্ট হয়েছে");
+    expect(report).toContain("ধার-দেনা ২");
+  });
+
+  it("includes bootstrap notice when created_tabs are present", () => {
+    const reportBn = syncReport("bn", {
+      rows: 0,
+      months: [],
+      unmapped: [],
+      debts: 0,
+      budget_categories: 0,
+      recurring: 0,
+      skipped_tabs: [],
+      created_tabs: ["সেটিংস", "সেপ্টেম্বর ২০২৬"],
+    });
+    expect(reportBn).toContain("স্প্রেডশিট প্রস্তুত করা হয়েছে");
+
+    const reportEn = syncReport("en", {
+      rows: 0,
+      months: [],
+      unmapped: [],
+      debts: 0,
+      budget_categories: 0,
+      recurring: 0,
+      skipped_tabs: [],
+      created_tabs: ["সেটিংস", "সেপ্টেম্বর ২০২৬"],
+    });
+    expect(reportEn).toContain("Spreadsheet initialized");
   });
 });
